@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracer Study — MSP FPIK UNSRAT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#003D5B;--primary-dark:#002840;--primary-light:#E8F4F8;
+  --teal:#006D77;--teal-dark:#004D55;--teal-light:#E0F4F5;
+  --accent:#C5973A;--accent-light:#FDF6E9;--accent-dark:#A07A2E;
+  --white:#FFFFFF;--cream:#FAFAF7;
+  --gray-50:#F8FAFB;--gray-100:#EEF2F5;--gray-200:#DEE4EA;--gray-300:#C5CDD8;
+  --gray-500:#6B7A8D;--gray-600:#4A5568;--gray-700:#384457;--gray-800:#1A2332;
+  --green:#1B7A4A;--green-bg:#E8F5EE;
+  --red:#C0392B;--red-bg:#FDECEA;
+  --blue:#2563EB;--blue-bg:#EFF6FF;
+  --border:rgba(0,61,91,0.12);
+  --shadow:0 2px 16px rgba(0,61,91,0.08);
+  --shadow-lg:0 8px 40px rgba(0,61,91,0.12);
+  --shadow-xl:0 20px 60px rgba(0,61,91,0.16);
+  --r:12px;--rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--gray-800);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.screen{display:none;animation:fadeIn .4s ease;}
+.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* HEADER */
+.hdr{background:var(--primary);color:#fff;position:sticky;top:0;z-index:100;border-bottom:3px solid var(--teal);}
+.hdr-in{max-width:1140px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:14px;}
+.hdr-logo{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.hdr-logo img{width:42px;height:42px;object-fit:contain;}
+.hdr-titles{flex:1;min-width:0;}
+.hdr h1{font-family:'Playfair Display',serif;font-size:16px;line-height:1.3;font-weight:700;}
+.hdr p{font-size:10px;opacity:.55;margin-top:2px;letter-spacing:.6px;text-transform:uppercase;}
+.hdr-back{margin-left:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:7px 16px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;display:none;font-weight:500;}
+.hdr-back:hover{background:rgba(255,255,255,.18);}
+
+/* FOOTER */
+.footer{background:var(--primary-dark);color:rgba(255,255,255,.5);padding:28px 24px;text-align:center;font-size:11px;line-height:1.8;letter-spacing:.3px;}
+.footer strong{color:rgba(255,255,255,.8);}
+
+/* HERO */
+.hero{background:linear-gradient(145deg,var(--primary) 0%,#0a4f6e 50%,var(--teal-dark) 100%);color:#fff;padding:48px 24px 80px;text-align:center;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-120px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(197,151,58,.12) 0%,transparent 70%);}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(197,151,58,.2);border:1px solid rgba(197,151,58,.3);color:var(--accent);font-size:11px;font-weight:600;padding:5px 14px;border-radius:20px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:20px;}
+.hero h2{font-family:'Playfair Display',serif;font-size:clamp(22px,4vw,36px);line-height:1.25;margin-bottom:14px;font-weight:800;}
+.hero p{font-size:14px;opacity:.75;max-width:620px;margin:0 auto;line-height:1.8;}
+.hero-note{margin-top:16px;font-size:11.5px;opacity:.45;font-style:italic;}
+
+/* SAMBUTAN */
+.sambutan-section{max-width:920px;margin:0 auto;padding:0 20px 32px;position:relative;z-index:10;}
+.sambutan-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:700px){.sambutan-grid{grid-template-columns:1fr;}}
+.sambutan-card{background:#fff;border-radius:14px;padding:28px 24px;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;flex-direction:column;}
+.sambutan-card .photo-wrap{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.sambutan-card .photo{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid var(--teal-light);flex-shrink:0;}
+.sambutan-card .photo-info h4{font-family:'Playfair Display',serif;font-size:14px;color:var(--primary);margin-bottom:2px;}
+.sambutan-card .photo-info span{font-size:11px;color:var(--gray-500);display:block;line-height:1.5;}
+.sambutan-card .sambutan-text{font-size:12.5px;color:var(--gray-600);line-height:1.8;flex:1;text-align:justify;}
+.sambutan-card .sambutan-text p{margin-bottom:8px;}
+
+/* CARDS */
+.cards{max-width:920px;margin:32px auto 0;padding:0 20px 48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;position:relative;z-index:10;}
+.rc{background:#fff;border-radius:14px;padding:28px 24px;box-shadow:var(--shadow);cursor:pointer;transition:transform .25s,box-shadow .25s;border:1.5px solid transparent;text-align:left;}
+.rc:hover{transform:translateY(-4px);box-shadow:var(--shadow-xl);}
+.rc.alumni:hover{border-color:var(--teal);}
+.rc.employer:hover{border-color:var(--accent);}
+.rc.admin:hover{border-color:var(--gray-600);}
+.rc-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:16px;}
+.rc.alumni .rc-ico{background:var(--teal-light);}
+.rc.employer .rc-ico{background:var(--accent-light);}
+.rc.admin .rc-ico{background:var(--gray-100);}
+.rc h3{font-family:'Playfair Display',serif;font-size:19px;margin-bottom:6px;color:var(--primary);}
+.rc p{font-size:13px;color:var(--gray-500);line-height:1.7;margin-bottom:16px;}
+.rc-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.rc.alumni .rc-btn{background:var(--teal);color:#fff;}
+.rc.employer .rc-btn{background:var(--accent);color:var(--primary);}
+.rc.admin .rc-btn{background:var(--gray-100);color:var(--gray-700);}
+
+/* FORM */
+.fw{max-width:740px;margin:36px auto;padding:0 18px 60px;}
+.step-lbl{font-size:11.5px;color:var(--gray-500);margin-bottom:8px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;}
+.prog-out{background:var(--gray-100);border-radius:4px;height:4px;margin-bottom:24px;overflow:hidden;}
+.prog-in{height:100%;background:linear-gradient(90deg,var(--teal),#0a9a8a);border-radius:4px;transition:width .4s ease;}
+.fc{background:#fff;border-radius:14px;padding:32px 36px;box-shadow:var(--shadow);margin-bottom:18px;border:1px solid var(--border);}
+@media(max-width:600px){.fc{padding:22px 16px;}}
+.sec-t{font-family:'Playfair Display',serif;font-size:21px;margin-bottom:5px;color:var(--primary);}
+.sec-s{font-size:13px;color:var(--gray-500);margin-bottom:24px;line-height:1.7;}
+.dvd{height:1px;background:var(--gray-100);margin:20px 0;}
+.f{margin-bottom:18px;}
+.f label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:var(--gray-700);}
+.f label .req{color:var(--red);margin-left:2px;}
+.f input,.f select,.f textarea{width:100%;border:1.5px solid var(--gray-200);border-radius:var(--rs);padding:10px 13px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray-800);background:#fff;transition:border-color .2s,box-shadow .2s;outline:none;}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,109,119,.08);}
+.f textarea{min-height:90px;resize:vertical;line-height:1.65;}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:560px){.f-row{grid-template-columns:1fr;}}
+.rg,.cg{display:flex;flex-direction:column;gap:7px;}
+.ro,.co{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1.5px solid var(--gray-200);border-radius:var(--rs);cursor:pointer;transition:all .2s;font-size:13px;line-height:1.5;}
+.ro:hover,.co:hover{border-color:var(--teal);background:var(--teal-light);}
+.ro.sel,.co.sel{border-color:var(--teal);background:var(--teal-light);}
+.ro input,.co input{accent-color:var(--teal);flex-shrink:0;}
+.rtg-grp{display:flex;gap:6px;flex-wrap:wrap;}
+.rtg-btn{width:38px;height:38px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--gray-500);}
+.rtg-btn:hover{border-color:var(--teal);color:var(--teal);}
+.rtg-btn.sel{background:var(--teal);border-color:var(--teal);color:#fff;}
+.rtg-lbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--gray-500);margin-top:4px;}
+.fnav{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.btn-p{padding:10px 22px;border-radius:var(--rs);border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-700);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.btn-p:hover{border-color:var(--teal);color:var(--teal);}
+.btn-n{padding:10px 24px;border-radius:var(--rs);border:none;background:var(--teal);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .2s;display:flex;align-items:center;gap:6px;}
+.btn-n:hover{background:var(--teal-dark);}
+.btn-n:disabled{background:var(--gray-300);cursor:not-allowed;}
+.btn-s{padding:12px 30px;border-radius:var(--rs);border:none;background:var(--accent);color:var(--primary);font-size:13.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.btn-s:hover{background:var(--accent-dark);color:#fff;}
+.btn-s:disabled{background:var(--gray-300);color:var(--gray-500);cursor:not-allowed;}
+.info-box{border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:12.5px;line-height:1.7;}
+.info-box strong{display:block;margin-bottom:4px;}
+.info-box.lam{background:var(--primary-light);border-left:4px solid var(--teal);color:var(--primary);}
+.info-box.lam strong{color:var(--teal-dark);}
+.info-box.warn{background:var(--accent-light);border-left:4px solid var(--accent);color:var(--gray-700);}
+.info-box.err{background:var(--red-bg);border-left:4px solid var(--red);color:var(--red);}
+
+/* SUCCESS */
+.suc-w{max-width:520px;margin:80px auto;padding:0 22px;text-align:center;}
+.suc-ico{width:72px;height:72px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px;}
+.suc-w h2{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:10px;color:var(--primary);}
+.suc-w p{color:var(--gray-500);font-size:13.5px;line-height:1.75;margin-bottom:24px;}
+
+/* LOGIN */
+.log-w{max-width:400px;margin:80px auto;padding:0 22px;}
+.log-c{background:#fff;border-radius:16px;padding:36px;box-shadow:var(--shadow-xl);text-align:center;border:1px solid var(--border);}
+.log-c h2{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:6px;color:var(--primary);}
+.log-c p{font-size:12.5px;color:var(--gray-500);margin-bottom:24px;}
+.log-err{background:var(--red-bg);color:var(--red);font-size:12px;padding:9px 12px;border-radius:7px;margin-bottom:14px;display:none;}
+
+/* ADMIN */
+.adm-w{max-width:1140px;margin:0 auto;padding:28px 22px 60px;}
+.adm-t{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:4px;color:var(--primary);}
+.adm-s{font-size:12.5px;color:var(--gray-500);margin-bottom:24px;line-height:1.6;}
+.adm-tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:2px solid var(--gray-100);flex-wrap:wrap;}
+.adm-tab{padding:9px 16px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;}
+.adm-tab.a{color:var(--teal);border-bottom-color:var(--teal);font-weight:600;}
+.adm-tab:hover{color:var(--teal);}
+.ap{display:none;}
+.ap.a{display:block;animation:fadeIn .3s ease;}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:24px;}
+.sc{background:#fff;border-radius:10px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.sl{font-size:10.5px;font-weight:600;color:var(--gray-500);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px;}
+.sv{font-size:28px;font-weight:700;color:var(--primary);}
+.su{font-size:12px;color:var(--gray-500);font-weight:400;}
+.cc{background:#fff;border-radius:12px;padding:22px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid var(--border);}
+.ct{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--primary);}
+.cg2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px;}
+.tw{overflow-x:auto;border-radius:10px;box-shadow:var(--shadow);background:#fff;border:1px solid var(--border);}
+table.dt{width:100%;border-collapse:collapse;font-size:11.5px;}
+table.dt th{background:var(--gray-50);padding:9px 11px;text-align:left;font-weight:600;color:var(--gray-700);border-bottom:1px solid var(--gray-100);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
+table.dt td{padding:9px 11px;border-bottom:1px solid var(--gray-100);vertical-align:top;}
+table.dt tr:last-child td{border-bottom:none;}
+table.dt tr:hover td{background:var(--gray-50);}
+.bdg{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:600;}
+.bgt{background:var(--teal-light);color:var(--teal-dark);}
+.bgg{background:var(--green-bg);color:var(--green);}
+.bgo{background:var(--accent-light);color:var(--accent-dark);}
+.bgb{background:var(--blue-bg);color:var(--blue);}
+.exp-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-700);font-size:11.5px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:14px;transition:all .2s;}
+.exp-btn:hover{border-color:var(--teal);color:var(--teal);}
+.empty{text-align:center;padding:50px 20px;color:var(--gray-500);font-size:13.5px;}
+.loading{text-align:center;padding:40px;color:var(--gray-500);font-size:13px;}
+
+/* Pengantar */
+.pengantar{max-width:800px;margin:-30px auto 0;padding:0 20px 40px;position:relative;z-index:10;}
+.pengantar-card{background:#fff;border-radius:16px;padding:36px 40px;box-shadow:var(--shadow-xl);border:1px solid var(--border);}
+@media(max-width:600px){.pengantar-card{padding:24px 20px;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     ⚙️  KONFIGURASI SUPABASE
+     Ganti dengan URL dan anon key project Anda
+     Ambil dari: Supabase → Settings → API
+     ══════════════════════════════════════════ -->
+<script>
+  const SUPABASE_URL  = 'https://oqpdcqpsrnxrvtdodtfj.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xcGRjcXBzcm54cnZ0ZG9kdGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4Mjg5MjMsImV4cCI6MjA5MTQwNDkyM30.l_1Ru8Kc2lf0AyeI9PCwyvk_Aq1Mpb33qWx0UmmzwlM';
+
+  // Password admin dashboard (simpan aman, bukan untuk production skala besar)
+  const ADMIN_PASSWORD = 'msp2025fpik';
+</script>
+
+<div class="hdr">
+  <div class="hdr-in">
+    <div class="hdr-logo">
+      <!-- Logo UNSRAT — ganti src jika perlu -->
+      <img src="https://upload.wikimedia.org/wikipedia/id/b/b1/Logo_Unsrat.png" alt="Logo UNSRAT" onerror="this.style.display='none'">
+    </div>
+    <div class="hdr-titles">
+      <h1>Tracer Study — Manajemen Sumberdaya Perairan</h1>
+      <p>Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi</p>
+    </div>
+    <button class="hdr-back" id="btnBack" onclick="goHome()">← Beranda</button>
+  </div>
+</div>
+
+<!-- ════ LANDING ════ -->
+<div id="screen-landing" class="screen active">
+  <div class="hero">
+    <div class="hero-badge">📋 Tracer Study · LAM PTIP 2025</div>
+    <h2>Sistem Tracer Study<br>Prodi MSP FPIK UNSRAT</h2>
+    <p>Survei penelusuran alumni dan kepuasan pengguna lulusan Program Studi Manajemen Sumberdaya Perairan (MSP), Fakultas Perikanan dan Ilmu Kelautan, Universitas Sam Ratulangi Manado.</p>
+    <p class="hero-note">Data digunakan untuk evaluasi kurikulum, peningkatan mutu pembelajaran, dan akreditasi LAM PTIP — IAPS 1.0 (Tabel 2.7B, 2.8B1, 2.8B2)</p>
+  </div>
+
+  <div class="sambutan-section">
+    <div class="sambutan-grid">
+      <div class="sambutan-card">
+        <div class="photo-wrap">
+          <div class="photo" style="background:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:28px;">👨‍💼</div>
+          <div class="photo-info">
+            <h4>Sambutan Dekan</h4>
+            <span>Dr. Ir. Ockstan Jurike Kalesaran, M.Sc.<br>Dekan FPIK UNSRAT</span>
+          </div>
+        </div>
+        <div class="sambutan-text">
+          <p>Puji syukur kepada Tuhan Yang Maha Esa atas terselenggaranya Sistem Tracer Study berbasis web untuk Program Studi Manajemen Sumberdaya Perairan (MSP) FPIK UNSRAT.</p>
+          <p>Tracer study merupakan instrumen strategis bagi fakultas dalam memantau daya saing lulusan di dunia kerja serta menjadi bahan evaluasi mutu pendidikan. Hasil survei ini menjadi komponen penting dalam penyusunan LKPS untuk akreditasi LAM PTIP.</p>
+          <p>Saya mengajak seluruh alumni dan pengguna lulusan untuk berpartisipasi aktif. Masukan Anda sangat berharga bagi kemajuan FPIK UNSRAT.</p>
+        </div>
+      </div>
+      <div class="sambutan-card">
+        <div class="photo-wrap">
+          <div class="photo" style="background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:28px;">👩‍🏫</div>
+          <div class="photo-info">
+            <h4>Sambutan Koordinator Prodi</h4>
+            <span>Dr. Jetty K. Rangan<br>Koordinator PS MSP FPIK UNSRAT</span>
+          </div>
+        </div>
+        <div class="sambutan-text">
+          <p>Tracer study merupakan studi pelacakan jejak lulusan yang bertujuan untuk mengetahui outcome pendidikan dalam bentuk transisi dari dunia pendidikan tinggi ke dunia kerja, situasi kerja terakhir, serta keselarasan kompetensi di dunia kerja.</p>
+          <p>Kami mengundang seluruh alumni MSP FPIK UNSRAT serta para pengguna lulusan untuk berpartisipasi mengisi kuesioner ini. Masukan Anda sangat berharga untuk pengembangan kurikulum dan peningkatan kualitas lulusan Prodi MSP ke depan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="rc alumni" onclick="startForm('alumni')">
+      <div class="rc-ico">🎓</div>
+      <h3>Alumni MSP</h3>
+      <p>Untuk lulusan S1 Manajemen Sumberdaya Perairan FPIK UNSRAT. Ceritakan perjalanan karier Anda setelah lulus.</p>
+      <button class="rc-btn">Isi Formulir Alumni →</button>
+    </div>
+    <div class="rc employer" onclick="startForm('employer')">
+      <div class="rc-ico">🏢</div>
+      <h3>Pengguna Lulusan</h3>
+      <p>Untuk instansi/lembaga/perusahaan yang mempekerjakan alumni MSP FPIK UNSRAT. Penilaian 7 aspek kompetensi.</p>
+      <button class="rc-btn">Isi Formulir Instansi →</button>
+    </div>
+    <div class="rc admin" onclick="showAdmin()">
+      <div class="rc-ico">📊</div>
+      <h3>Dashboard Admin</h3>
+      <p>Pengelola prodi. Akses data respons, analitik, dan ekspor laporan untuk kebutuhan akreditasi LAM PTIP.</p>
+      <button class="rc-btn">Masuk Dashboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ALUMNI FORM ════ -->
+<div id="screen-alumni" class="screen">
+<div class="fw">
+  <div class="step-lbl" id="a-lbl">Langkah 1 dari 5</div>
+  <div class="prog-out"><div class="prog-in" id="a-prog" style="width:20%"></div></div>
+
+  <!-- STEP 1: Data Diri -->
+  <div id="a-s1" class="fc">
+    <h2 class="sec-t">Data Diri Alumni</h2>
+    <p class="sec-s">Data bersifat rahasia dan hanya digunakan untuk keperluan akademik dan akreditasi.</p>
+    <div class="f-row">
+      <div class="f"><label>Nama Lengkap <span class="req">*</span></label><input id="a-nama" type="text" placeholder="Nama sesuai ijazah"></div>
+      <div class="f"><label>NIM <span class="req">*</span></label><input id="a-nim" type="text" placeholder="Nomor Induk Mahasiswa"></div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>Tahun Masuk <span class="req">*</span></label><input id="a-masuk" type="number" placeholder="Contoh: 2016" min="1995" max="2030"></div>
+      <div class="f"><label>Tahun Lulus <span class="req">*</span></label><input id="a-lulus" type="number" placeholder="Contoh: 2021" min="1995" max="2030"></div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>Email Aktif <span class="req">*</span></label><input id="a-email" type="email" placeholder="email@contoh.com"></div>
+      <div class="f"><label>No. WhatsApp / HP</label><input id="a-hp" type="tel" placeholder="+62 ..."></div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>Jenis Kelamin <span class="req">*</span></label>
+        <select id="a-gender"><option value="">-- Pilih --</option><option>Laki-laki</option><option>Perempuan</option></select>
+      </div>
+      <div class="f"><label>IPK Kelulusan</label><input id="a-ipk" type="number" step="0.01" min="0" max="4" placeholder="Contoh: 3.52"></div>
+    </div>
+    <div class="f"><label>Judul Skripsi / Penelitian Akhir</label><input id="a-judul" type="text" placeholder="Judul skripsi Anda"></div>
+    <div class="fnav"><button class="btn-n" onclick="aNext(1)">Lanjut →</button></div>
+  </div>
+
+  <!-- STEP 2: Situasi Kerja -->
+  <div id="a-s2" class="fc" style="display:none">
+    <h2 class="sec-t">Situasi Pekerjaan Saat Ini</h2>
+    <p class="sec-s">Informasi ini digunakan untuk Tabel 2.8B1 (Waktu Tunggu) dan 2.8B2 (Kesesuaian) pada LKPS LAM PTIP.</p>
+    <div class="info-box lam"><strong>📌 Untuk Akreditasi LAM PTIP:</strong> Data Anda (tanpa nama) akan digunakan untuk menghitung waktu tunggu kerja rata-rata dan persentase lulusan yang bekerja di bidang relevan.</div>
+    <div class="f">
+      <label>Status Saat Ini <span class="req">*</span></label>
+      <div class="rg" id="a-status">
+        <label class="ro"><input type="radio" name="astatus" value="Bekerja (Full Time)"> Bekerja Penuh Waktu (Full Time)</label>
+        <label class="ro"><input type="radio" name="astatus" value="Bekerja (Part Time)"> Bekerja Paruh Waktu (Part Time)</label>
+        <label class="ro"><input type="radio" name="astatus" value="Wiraswasta/Wirausaha"> Wiraswasta / Wirausaha</label>
+        <label class="ro"><input type="radio" name="astatus" value="Melanjutkan Studi"> Sedang Melanjutkan Studi (S2/S3)</label>
+        <label class="ro"><input type="radio" name="astatus" value="Belum Bekerja"> Belum / Sedang Mencari Pekerjaan</label>
+        <label class="ro"><input type="radio" name="astatus" value="Lainnya"> Lainnya</label>
+      </div>
+    </div>
+    <div class="f">
+      <label>Waktu Tunggu Mendapatkan Pekerjaan Pertama <span class="req">*</span></label>
+      <select id="a-tunggu">
+        <option value="">-- Pilih --</option>
+        <option value="WT < 6 bulan">Kurang dari 6 bulan setelah lulus</option>
+        <option value="WT 6-12 bulan">6 – 12 bulan setelah lulus</option>
+        <option value="WT 12-18 bulan">12 – 18 bulan setelah lulus</option>
+        <option value="WT > 18 bulan">Lebih dari 18 bulan setelah lulus</option>
+        <option value="Belum bekerja">Belum mendapatkan pekerjaan</option>
+      </select>
+    </div>
+    <div class="f"><label>Nama Instansi / Perusahaan / Lembaga</label><input id="a-instansi" type="text" placeholder="Tempat kerja saat ini"></div>
+    <div class="f-row">
+      <div class="f"><label>Jabatan / Posisi Saat Ini</label><input id="a-jabatan" type="text" placeholder="Jabatan Anda"></div>
+      <div class="f"><label>Kota / Provinsi Tempat Kerja</label><input id="a-kota" type="text" placeholder="Contoh: Manado, Sulawesi Utara"></div>
+    </div>
+    <div class="f">
+      <label>Bidang/Sektor Pekerjaan <span class="req">*</span></label>
+      <select id="a-bidang">
+        <option value="">-- Pilih Sektor --</option>
+        <option>Dinas Kelautan dan Perikanan (DKP)</option>
+        <option>Kementerian Kelautan dan Perikanan (KKP)</option>
+        <option>Balai Riset / Lembaga Penelitian Perikanan & Kelautan</option>
+        <option>BKSDA / KLHK / Kawasan Konservasi</option>
+        <option>BKIPM (Badan Karantina Ikan)</option>
+        <option>BRIN / Lembaga Riset Nasional</option>
+        <option>Perusahaan Perikanan Tangkap</option>
+        <option>Perusahaan Budidaya / Aquaculture</option>
+        <option>Perusahaan Pengolahan Hasil Perikanan</option>
+        <option>Perguruan Tinggi / Pendidikan</option>
+        <option>LSM / NGO Lingkungan</option>
+        <option>Wirausaha Mandiri (Perikanan/Kelautan)</option>
+        <option>Instansi Pemerintah Lain (Non-Perikanan)</option>
+        <option>Perusahaan Swasta Lain (Non-Perikanan)</option>
+        <option>Lainnya</option>
+      </select>
+    </div>
+    <div class="f">
+      <label>Tingkat/Level Tempat Bekerja <span class="req">*</span></label>
+      <select id="a-level-kerja">
+        <option value="">-- Pilih --</option>
+        <option>Lokal/Wilayah/Wiraswasta tidak berbadan hukum</option>
+        <option>Nasional/Wiraswasta berbadan hukum</option>
+        <option>Multinasional/Internasional</option>
+      </select>
+    </div>
+    <div class="f">
+      <label>Pendapatan per Bulan (Rp) <span class="req">*</span></label>
+      <select id="a-gaji">
+        <option value="">-- Pilih Rentang --</option>
+        <option>Kurang dari Rp 2.000.000</option>
+        <option>Rp 2.000.001 – 4.000.000</option>
+        <option>Rp 4.000.001 – 6.000.000</option>
+        <option>Rp 6.000.001 – 10.000.000</option>
+        <option>Rp 10.000.001 – 15.000.000</option>
+        <option>Di atas Rp 15.000.000</option>
+        <option>Tidak ingin menyebutkan</option>
+      </select>
+    </div>
+    <div class="fnav">
+      <button class="btn-p" onclick="aGo(1)">← Kembali</button>
+      <button class="btn-n" onclick="aNext(2)">Lanjut →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Kesesuaian -->
+  <div id="a-s3" class="fc" style="display:none">
+    <h2 class="sec-t">Kesesuaian Bidang Kerja & Kompetensi</h2>
+    <p class="sec-s">Data ini digunakan untuk Tabel 2.8B2 LKPS (Kesesuaian Bidang Kerja Lulusan).</p>
+    <div class="f">
+      <label>Kesesuaian bidang pekerjaan dengan Prodi MSP <span class="req">*</span></label>
+      <div class="rg" id="a-sesuai">
+        <label class="ro"><input type="radio" name="asesuai" value="Sangat Erat"> Sangat Erat — pekerjaan langsung di bidang MSP/perikanan/kelautan</label>
+        <label class="ro"><input type="radio" name="asesuai" value="Erat"> Erat — bidang terkait sumberdaya alam/lingkungan</label>
+        <label class="ro"><input type="radio" name="asesuai" value="Cukup Erat"> Cukup Erat — ada irisan dengan ilmu MSP</label>
+        <label class="ro"><input type="radio" name="asesuai" value="Kurang Erat"> Kurang Erat — pekerjaan tidak terlalu terkait MSP</label>
+        <label class="ro"><input type="radio" name="asesuai" value="Tidak Erat"> Tidak Erat — pekerjaan tidak berkaitan sama sekali</label>
+      </div>
+    </div>
+    <div class="f">
+      <label>Sumber Informasi Lowongan Pekerjaan Pertama</label>
+      <div class="rg" id="a-sumber">
+        <label class="ro"><input type="radio" name="asumber" value="Relasi (dosen/teman/keluarga)"> Relasi (rekomendasi dosen, teman, keluarga)</label>
+        <label class="ro"><input type="radio" name="asumber" value="Iklan online/media sosial"> Iklan online / media sosial</label>
+        <label class="ro"><input type="radio" name="asumber" value="Rekrutmen instansi langsung"> Rekrutmen langsung oleh instansi</label>
+        <label class="ro"><input type="radio" name="asumber" value="Magang/PKL berlanjut"> Magang/PKL yang dilanjutkan menjadi kerja</label>
+        <label class="ro"><input type="radio" name="asumber" value="Mendirikan usaha sendiri"> Mendirikan usaha sendiri</label>
+        <label class="ro"><input type="radio" name="asumber" value="Seleksi CPNS/PPPK"> Seleksi CPNS / PPPK</label>
+        <label class="ro"><input type="radio" name="asumber" value="Lainnya"> Lainnya</label>
+      </div>
+    </div>
+    <div class="f">
+      <label>Kompetensi MSP yang Paling Bermanfaat (pilih maks. 3)</label>
+      <div class="cg" id="a-komp">
+        <label class="co"><input type="checkbox" value="Pengelolaan Sumberdaya Perairan"> Pengelolaan & Konservasi Sumberdaya Perairan</label>
+        <label class="co"><input type="checkbox" value="Analisis Data Perikanan"> Analisis Data & Statistik Perikanan</label>
+        <label class="co"><input type="checkbox" value="Ekologi Perairan"> Ekologi Perairan & Oseanografi</label>
+        <label class="co"><input type="checkbox" value="GIS & Pemetaan"> GIS / Pemetaan & Penginderaan Jauh Kelautan</label>
+        <label class="co"><input type="checkbox" value="Hukum & Kebijakan Perikanan"> Hukum, Kebijakan & Peraturan Perikanan</label>
+        <label class="co"><input type="checkbox" value="Riset & Penulisan Ilmiah"> Riset, Metodologi & Penulisan Ilmiah</label>
+        <label class="co"><input type="checkbox" value="Komunikasi & Penyuluhan"> Komunikasi & Penyuluhan Perikanan</label>
+        <label class="co"><input type="checkbox" value="Kewirausahaan Perikanan"> Kewirausahaan & Manajemen Usaha Perikanan</label>
+      </div>
+    </div>
+    <div class="f"><label>Kompetensi yang Perlu Ditingkatkan oleh Prodi MSP</label>
+      <textarea id="a-perlu" placeholder="Tuliskan kompetensi atau keterampilan yang sebaiknya diperkuat..."></textarea>
+    </div>
+    <div class="fnav">
+      <button class="btn-p" onclick="aGo(2)">← Kembali</button>
+      <button class="btn-n" onclick="aNext(3)">Lanjut →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Penilaian Prodi -->
+  <div id="a-s4" class="fc" style="display:none">
+    <h2 class="sec-t">Penilaian Program Studi MSP</h2>
+    <p class="sec-s">Berikan penilaian terhadap aspek-aspek penyelenggaraan Prodi S1 MSP FPIK UNSRAT.</p>
+    <p style="font-size:12.5px;font-weight:600;margin-bottom:14px;color:var(--primary)">Skala: 1 = Sangat Kurang &nbsp;|&nbsp; 2 = Kurang &nbsp;|&nbsp; 3 = Cukup &nbsp;|&nbsp; 4 = Baik &nbsp;|&nbsp; 5 = Sangat Baik</p>
+    <div id="rtg-alumni"></div>
+    <div class="f">
+      <label>Metode Pembelajaran yang Paling Berpengaruh</label>
+      <div class="cg" id="a-metode">
+        <label class="co"><input type="checkbox" value="Perkuliahan tatap muka"> Perkuliahan tatap muka</label>
+        <label class="co"><input type="checkbox" value="Praktikum laboratorium"> Praktikum laboratorium</label>
+        <label class="co"><input type="checkbox" value="Kerja Lapangan/PKL"> Kerja Lapangan / PKL</label>
+        <label class="co"><input type="checkbox" value="Magang industri"> Magang di instansi/industri</label>
+        <label class="co"><input type="checkbox" value="Penelitian/proyek riset"> Partisipasi dalam penelitian/riset</label>
+        <label class="co"><input type="checkbox" value="Diskusi dan presentasi"> Diskusi kelompok & presentasi</label>
+        <label class="co"><input type="checkbox" value="Studi kasus"> Studi kasus lapangan</label>
+      </div>
+    </div>
+    <div class="fnav">
+      <button class="btn-p" onclick="aGo(3)">← Kembali</button>
+      <button class="btn-n" onclick="aNext(4)">Lanjut →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Saran -->
+  <div id="a-s5" class="fc" style="display:none">
+    <h2 class="sec-t">Saran & Rekomendasi</h2>
+    <p class="sec-s">Masukan Anda sangat berarti untuk pengembangan Prodi MSP FPIK UNSRAT.</p>
+    <div class="f"><label>Saran untuk Peningkatan Kurikulum & Pembelajaran</label>
+      <textarea id="a-saran-kur" placeholder="Mata kuliah, topik, atau keterampilan yang sebaiknya ditambahkan..."></textarea>
+    </div>
+    <div class="f"><label>Saran untuk Peningkatan Fasilitas & Sarana</label>
+      <textarea id="a-saran-fas" placeholder="Laboratorium, peralatan, perpustakaan, dll..."></textarea>
+    </div>
+    <div class="f">
+      <label>Apakah Anda merekomendasikan Prodi MSP FPIK UNSRAT? <span class="req">*</span></label>
+      <div class="rg" id="a-rekom">
+        <label class="ro"><input type="radio" name="arekom" value="Sangat merekomendasikan"> Sangat merekomendasikan</label>
+        <label class="ro"><input type="radio" name="arekom" value="Merekomendasikan"> Merekomendasikan</label>
+        <label class="ro"><input type="radio" name="arekom" value="Cukup merekomendasikan"> Cukup merekomendasikan</label>
+        <label class="ro"><input type="radio" name="arekom" value="Tidak merekomendasikan"> Tidak merekomendasikan</label>
+      </div>
+    </div>
+    <div class="f"><label>Pesan untuk Adik-adik Mahasiswa MSP</label>
+      <textarea id="a-pesan" placeholder="Motivasi atau pesan untuk mahasiswa MSP yang saat ini masih belajar..."></textarea>
+    </div>
+    <div id="a-submit-err" class="info-box err" style="display:none"></div>
+    <div class="fnav">
+      <button class="btn-p" onclick="aGo(4)">← Kembali</button>
+      <button class="btn-s" id="btn-submit-alumni" onclick="submitAlumni()">✅ Kirim Formulir</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════ EMPLOYER FORM ════ -->
+<div id="screen-employer" class="screen">
+<div class="fw">
+  <div class="step-lbl" id="e-lbl">Langkah 1 dari 3</div>
+  <div class="prog-out"><div class="prog-in" id="e-prog" style="width:33%"></div></div>
+
+  <div id="e-s1" class="fc">
+    <h2 class="sec-t">Data Instansi / Pengguna Lulusan</h2>
+    <p class="sec-s">Informasi mengenai lembaga/perusahaan yang mempekerjakan alumni MSP FPIK UNSRAT.</p>
+    <div class="info-box lam"><strong>📌 Untuk Akreditasi LAM PTIP (Tabel 2.7B):</strong> Penilaian Anda terhadap 7 aspek kompetensi alumni digunakan langsung sebagai data kepuasan pengguna lulusan.</div>
+    <div class="f"><label>Nama Instansi / Perusahaan <span class="req">*</span></label><input id="e-inst" type="text" placeholder="Nama lengkap instansi"></div>
+    <div class="f-row">
+      <div class="f"><label>Bidang / Sektor Instansi <span class="req">*</span></label>
+        <select id="e-sektor">
+          <option value="">-- Pilih --</option>
+          <option>Dinas Kelautan dan Perikanan</option>
+          <option>Kementerian KP / KKP</option>
+          <option>BRIN / Lembaga Riset</option>
+          <option>Balai Riset Perikanan / Kelautan</option>
+          <option>BKSDA / KLHK</option>
+          <option>BKIPM</option>
+          <option>Perguruan Tinggi / Pendidikan</option>
+          <option>Perusahaan Perikanan</option>
+          <option>Perusahaan Budidaya / Aquaculture</option>
+          <option>LSM / NGO Lingkungan</option>
+          <option>Pemerintah Daerah</option>
+          <option>Lainnya</option>
+        </select>
+      </div>
+      <div class="f"><label>Kota / Kabupaten <span class="req">*</span></label><input id="e-kota" type="text" placeholder="Lokasi instansi"></div>
+    </div>
+    <div style="height:1px;background:var(--gray-100);margin:20px 0"></div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px">Data pengisi (bersifat rahasia)</p>
+    <div class="f-row">
+      <div class="f"><label>Nama Pengisi <span class="req">*</span></label><input id="e-pengisi" type="text" placeholder="Nama lengkap Anda"></div>
+      <div class="f"><label>Jabatan Pengisi <span class="req">*</span></label><input id="e-jabpengisi" type="text" placeholder="Jabatan di instansi"></div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>Email <span class="req">*</span></label><input id="e-email" type="email" placeholder="email@instansi.com"></div>
+      <div class="f"><label>No. Telepon / WA</label><input id="e-telp" type="tel" placeholder="+62 ..."></div>
+    </div>
+    <div class="f"><label>Nama Alumni MSP yang Dinilai</label><input id="e-alum" type="text" placeholder="Nama alumni (opsional)"></div>
+    <div class="f-row">
+      <div class="f"><label>Jabatan Alumni di Instansi Anda</label><input id="e-alum-jab" type="text" placeholder="Jabatan alumni saat ini"></div>
+      <div class="f"><label>Lama Bekerja di Instansi</label>
+        <select id="e-lama"><option value="">-- Pilih --</option><option>Kurang dari 1 tahun</option><option>1 – 2 tahun</option><option>2 – 5 tahun</option><option>Lebih dari 5 tahun</option></select>
+      </div>
+    </div>
+    <div class="fnav"><button class="btn-n" onclick="eNext(1)">Lanjut →</button></div>
+  </div>
+
+  <div id="e-s2" class="fc" style="display:none">
+    <h2 class="sec-t">Penilaian 7 Aspek Kompetensi Alumni</h2>
+    <p class="sec-s">Sesuai standar LAM PTIP Tabel 2.7B — Kepuasan Pengguna Lulusan.</p>
+    <div class="info-box lam"><strong>📌 Instruksi:</strong> Skala: <strong>1 = Sangat Kurang, 2 = Kurang, 3 = Cukup, 4 = Baik, 5 = Sangat Baik</strong></div>
+    <div id="rtg-employer"></div>
+    <div class="fnav">
+      <button class="btn-p" onclick="eGo(1)">← Kembali</button>
+      <button class="btn-n" onclick="eNext(2)">Lanjut →</button>
+    </div>
+  </div>
+
+  <div id="e-s3" class="fc" style="display:none">
+    <h2 class="sec-t">Kepuasan & Harapan</h2>
+    <p class="sec-s">Harapan dunia kerja terhadap lulusan Prodi MSP FPIK UNSRAT.</p>
+    <div class="f">
+      <label>Tingkat Kepuasan Keseluruhan <span class="req">*</span></label>
+      <div class="rg" id="e-puas">
+        <label class="ro"><input type="radio" name="epuas" value="Sangat Puas"> Sangat Puas</label>
+        <label class="ro"><input type="radio" name="epuas" value="Puas"> Puas</label>
+        <label class="ro"><input type="radio" name="epuas" value="Cukup Puas"> Cukup Puas</label>
+        <label class="ro"><input type="radio" name="epuas" value="Kurang Puas"> Kurang Puas</label>
+        <label class="ro"><input type="radio" name="epuas" value="Tidak Puas"> Tidak Puas</label>
+      </div>
+    </div>
+    <div class="f">
+      <label>Apakah instansi Anda akan merekrut lulusan MSP lagi?</label>
+      <div class="rg" id="e-rekrut">
+        <label class="ro"><input type="radio" name="erekrut" value="Ya, pasti"> Ya, pasti</label>
+        <label class="ro"><input type="radio" name="erekrut" value="Ya, kemungkinan besar"> Ya, kemungkinan besar</label>
+        <label class="ro"><input type="radio" name="erekrut" value="Tidak yakin"> Tidak yakin</label>
+        <label class="ro"><input type="radio" name="erekrut" value="Kemungkinan tidak"> Kemungkinan tidak</label>
+      </div>
+    </div>
+    <div class="f"><label>Kompetensi yang Perlu Ditingkatkan</label>
+      <textarea id="e-saran" placeholder="Kompetensi atau karakter yang sebaiknya ditingkatkan..."></textarea>
+    </div>
+    <div class="f"><label>Harapan / Pesan untuk Prodi MSP</label>
+      <textarea id="e-pesan" placeholder="Harapan atau rekomendasi dari dunia kerja..."></textarea>
+    </div>
+    <div id="e-submit-err" class="info-box err" style="display:none"></div>
+    <div class="fnav">
+      <button class="btn-p" onclick="eGo(2)">← Kembali</button>
+      <button class="btn-s" id="btn-submit-employer" onclick="submitEmployer()">✅ Kirim Formulir</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════ SUCCESS ════ -->
+<div id="screen-success" class="screen">
+  <div class="suc-w">
+    <div class="suc-ico">✅</div>
+    <h2>Terima Kasih!</h2>
+    <p>Formulir Anda telah berhasil dikirim dan tersimpan di database Tracer Study Prodi MSP FPIK UNSRAT. Masukan Anda sangat berharga untuk kemajuan program studi dan akreditasi LAM PTIP.</p>
+    <button class="btn-n" style="margin:0 auto" onclick="goHome()">← Kembali ke Beranda</button>
+  </div>
+</div>
+
+<!-- ════ ADMIN LOGIN ════ -->
+<div id="screen-admin-login" class="screen">
+  <div class="log-w">
+    <div class="log-c">
+      <div style="font-size:36px;margin-bottom:14px">🔐</div>
+      <h2>Dashboard Admin</h2>
+      <p>Akses data Tracer Study Prodi MSP FPIK UNSRAT.</p>
+      <div class="log-err" id="log-err">Password salah. Coba lagi.</div>
+      <div class="f" style="text-align:left">
+        <label>Password Admin</label>
+        <input id="adm-pass" type="password" placeholder="Masukkan password" onkeydown="if(event.key==='Enter')admLogin()">
+      </div>
+      <button class="btn-s" style="width:100%;margin-top:8px" onclick="admLogin()">Masuk Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ADMIN DASHBOARD ════ -->
+<div id="screen-admin" class="screen">
+  <div class="adm-w">
+    <h2 class="adm-t">📊 Dashboard Tracer Study</h2>
+    <p class="adm-s">Prodi MSP FPIK UNSRAT · Data dari Supabase · LKPS LAM PTIP IAPS 1.0 (Tabel 2.7B · 2.8B1 · 2.8B2)</p>
+    <div class="adm-tabs">
+      <button class="adm-tab a" onclick="admTab('ov')">Ringkasan</button>
+      <button class="adm-tab" onclick="admTab('lam')">Laporan LAM PTIP</button>
+      <button class="adm-tab" onclick="admTab('al')">Data Alumni</button>
+      <button class="adm-tab" onclick="admTab('em')">Data Pengguna Lulusan</button>
+    </div>
+    <div id="ap-ov" class="ap a">
+      <div class="sg" id="sgrid"></div>
+      <div class="cg2">
+        <div class="cc"><div class="ct">Status Pekerjaan Alumni</div><div style="position:relative;height:210px"><canvas id="ch-status"></canvas></div></div>
+        <div class="cc"><div class="ct">Bidang/Sektor Pekerjaan</div><div style="position:relative;height:210px"><canvas id="ch-bidang"></canvas></div></div>
+        <div class="cc"><div class="ct">Waktu Tunggu Kerja (Tabel 2.8B1)</div><div style="position:relative;height:210px"><canvas id="ch-tunggu"></canvas></div></div>
+        <div class="cc"><div class="ct">Kesesuaian Bidang Kerja (Tabel 2.8B2)</div><div style="position:relative;height:210px"><canvas id="ch-sesuai"></canvas></div></div>
+      </div>
+      <div class="cc"><div class="ct">Rata-rata Penilaian Prodi oleh Alumni</div><div style="position:relative;height:260px"><canvas id="ch-rtg"></canvas></div></div>
+      <div class="cg2">
+        <div class="cc"><div class="ct">Kepuasan Pengguna Lulusan</div><div style="position:relative;height:210px"><canvas id="ch-puas"></canvas></div></div>
+        <div class="cc"><div class="ct">7 Aspek Kompetensi (Tabel 2.7B)</div><div style="position:relative;height:260px"><canvas id="ch-7asp"></canvas></div></div>
+      </div>
+    </div>
+    <div id="ap-lam" class="ap"><div class="cc"><div class="ct">📋 Data untuk LKPS LAM PTIP IAPS 1.0</div><div id="lam-report"></div></div></div>
+    <div id="ap-al" class="ap">
+      <button class="exp-btn" onclick="exportCSV('alumni')">⬇ Unduh CSV Alumni</button>
+      <div class="tw"><table class="dt"><thead><tr><th>Nama</th><th>NIM</th><th>Lulus</th><th>Email</th><th>Status</th><th>Instansi</th><th>Bidang</th><th>Level</th><th>Waktu Tunggu</th><th>Kesesuaian</th><th>Gaji</th><th>Rekomen</th><th>Waktu Isi</th></tr></thead><tbody id="tb-al"></tbody></table></div>
+    </div>
+    <div id="ap-em" class="ap">
+      <button class="exp-btn" onclick="exportCSV('employer')">⬇ Unduh CSV Pengguna Lulusan</button>
+      <div class="tw"><table class="dt"><thead><tr><th>Instansi</th><th>Sektor</th><th>Kota</th><th>Pengisi</th><th>Email</th><th>Alumni</th><th>Kepuasan</th><th>Rekrut</th><th>Waktu Isi</th></tr></thead><tbody id="tb-em"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <strong>Program Studi Manajemen Sumberdaya Perairan (MSP)</strong><br>
+  Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi<br>
+  Jl. Kampus UNSRAT, Bahu, Manado 95115, Sulawesi Utara<br>
+  © 2025 Prodi MSP FPIK UNSRAT · Tracer Study System v2.1 (Supabase Edition)
+</div>
+
+<script>
+// ════ INIT SUPABASE ════
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ════ ROUTING ════
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.getElementById('btnBack').style.display=id==='landing'?'none':'block';
+  window.scrollTo(0,0);
+}
+function goHome(){show('landing');}
+function startForm(r){if(r==='alumni'){aGo(1);show('alumni');}else{eGo(1);show('employer');}}
+function showAdmin(){show('admin-login');setTimeout(()=>document.getElementById('adm-pass').focus(),100);}
+
+// ════ RADIO/CHECK STYLE ════
+document.addEventListener('change',e=>{
+  if(e.target.type==='radio'){
+    const g=e.target.closest('.rg');
+    if(g)g.querySelectorAll('.ro').forEach(o=>o.classList.toggle('sel',o.querySelector('input').checked));
+  }
+  if(e.target.type==='checkbox') e.target.closest('.co')?.classList.toggle('sel',e.target.checked);
+});
+
+// ════ RATING DEFS ════
+const aRtgs=[
+  {id:'ar1',lbl:'Kualitas Kurikulum & Kesesuaian dengan Kebutuhan Lapangan'},
+  {id:'ar2',lbl:'Kualitas Pengajaran & Kompetensi Dosen MSP'},
+  {id:'ar3',lbl:'Bimbingan Akademik & Pembimbingan Skripsi'},
+  {id:'ar4',lbl:'Fasilitas Laboratorium Perairan & Kelautan'},
+  {id:'ar5',lbl:'Fasilitas Sarana Prasarana Kampus & Perpustakaan'},
+  {id:'ar6',lbl:'Kegiatan PKL / Kerja Lapangan'},
+  {id:'ar7',lbl:'Pelayanan Administrasi Akademik'},
+];
+const eRtgs=[
+  {id:'er1',lbl:'Integritas (Etika dan Moral)'},
+  {id:'er2',lbl:'Keahlian Berdasarkan Bidang Ilmu (Profesionalisme)'},
+  {id:'er3',lbl:'Kemampuan Berbahasa Asing'},
+  {id:'er4',lbl:'Penggunaan Teknologi Informasi'},
+  {id:'er5',lbl:'Kemampuan Berkomunikasi'},
+  {id:'er6',lbl:'Kemampuan Bekerjasama dalam Tim'},
+  {id:'er7',lbl:'Kemampuan Pengembangan Diri'},
+];
+
+function buildRtgs(items,cid){
+  document.getElementById(cid).innerHTML=items.map(r=>`
+    <div class="f">
+      <label>${r.lbl} <span class="req">*</span></label>
+      <div class="rtg-grp" id="${r.id}">
+        ${[1,2,3,4,5].map(n=>`<button type="button" class="rtg-btn" onclick="selR('${r.id}',${n})" data-v="${n}">${n}</button>`).join('')}
+      </div>
+      <div class="rtg-lbl"><span>Sangat Kurang</span><span>Sangat Baik</span></div>
+    </div>`).join('');
+}
+buildRtgs(aRtgs,'rtg-alumni');
+buildRtgs(eRtgs,'rtg-employer');
+
+function selR(id,v){document.querySelectorAll(`#${id} .rtg-btn`).forEach(b=>b.classList.toggle('sel',+b.dataset.v===v));}
+function getR(id){const s=document.querySelector(`#${id} .rtg-btn.sel`);return s?+s.dataset.v:null;}
+function vv(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+
+// ════ ALUMNI STEPS ════
+function aGo(s){
+  for(let i=1;i<=5;i++)document.getElementById('a-s'+i).style.display='none';
+  document.getElementById('a-s'+s).style.display='block';
+  document.getElementById('a-lbl').textContent=`Langkah ${s} dari 5`;
+  document.getElementById('a-prog').style.width=(s/5*100)+'%';
+  window.scrollTo(0,0);
+}
+function aNext(from){
+  if(from===1){
+    if(!vv('a-nama')||!vv('a-nim')||!vv('a-masuk')||!vv('a-lulus')||!vv('a-email')||!vv('a-gender'))
+      return alert('Mohon lengkapi semua field wajib (*).');
+    aGo(2);
+  }else if(from===2){
+    if(!document.querySelector('input[name="astatus"]:checked')||!vv('a-tunggu')||!vv('a-bidang')||!vv('a-gaji'))
+      return alert('Mohon lengkapi semua field wajib (*).');
+    aGo(3);
+  }else if(from===3){
+    if(!document.querySelector('input[name="asesuai"]:checked'))
+      return alert('Mohon pilih tingkat kesesuaian pekerjaan.');
+    aGo(4);
+  }else if(from===4){
+    const miss=aRtgs.find(r=>getR(r.id)===null);
+    if(miss)return alert('Mohon lengkapi semua penilaian program studi.');
+    aGo(5);
+  }
+}
+
+async function submitAlumni(){
+  if(!document.querySelector('input[name="arekom"]:checked'))
+    return alert('Mohon pilih apakah Anda merekomendasikan Prodi MSP.');
+
+  const btn=document.getElementById('btn-submit-alumni');
+  const errBox=document.getElementById('a-submit-err');
+  btn.disabled=true; btn.textContent='⏳ Mengirim...';
+  errBox.style.display='none';
+
+  const komp=Array.from(document.querySelectorAll('#a-komp input:checked')).map(x=>x.value);
+  const metode=Array.from(document.querySelectorAll('#a-metode input:checked')).map(x=>x.value);
+
+  const payload={
+    nama:vv('a-nama'), nim:vv('a-nim'), masuk:vv('a-masuk'), lulus:vv('a-lulus'),
+    email:vv('a-email'), hp:vv('a-hp'), gender:vv('a-gender'), ipk:vv('a-ipk'), judul:vv('a-judul'),
+    status:document.querySelector('input[name="astatus"]:checked')?.value,
+    tunggu:vv('a-tunggu'), instansi:vv('a-instansi'), jabatan:vv('a-jabatan'), kota:vv('a-kota'),
+    bidang:vv('a-bidang'), level_kerja:vv('a-level-kerja'), gaji:vv('a-gaji'),
+    kesesuaian:document.querySelector('input[name="asesuai"]:checked')?.value,
+    sumber:document.querySelector('input[name="asumber"]:checked')?.value,
+    kompetensi:komp.join('; '), perlu:vv('a-perlu'),
+    // Rating flat columns
+    rtg_ar1:getR('ar1'), rtg_ar2:getR('ar2'), rtg_ar3:getR('ar3'), rtg_ar4:getR('ar4'),
+    rtg_ar5:getR('ar5'), rtg_ar6:getR('ar6'), rtg_ar7:getR('ar7'),
+    metode:metode.join('; '),
+    saran_kur:vv('a-saran-kur'), saran_fas:vv('a-saran-fas'),
+    rekomendasi:document.querySelector('input[name="arekom"]:checked')?.value,
+    pesan:vv('a-pesan'),
+  };
+
+  const {error}=await db.from('ts_alumni').insert(payload);
+  if(error){
+    errBox.innerHTML=`<strong>Gagal mengirim data.</strong> ${error.message}<br><small>Cek koneksi internet atau konfigurasi Supabase.</small>`;
+    errBox.style.display='block';
+    btn.disabled=false; btn.textContent='✅ Kirim Formulir';
+  }else{
+    show('success');
+  }
+}
+
+// ════ EMPLOYER STEPS ════
+function eGo(s){
+  for(let i=1;i<=3;i++)document.getElementById('e-s'+i).style.display='none';
+  document.getElementById('e-s'+s).style.display='block';
+  document.getElementById('e-lbl').textContent=`Langkah ${s} dari 3`;
+  document.getElementById('e-prog').style.width=(s/3*100)+'%';
+  window.scrollTo(0,0);
+}
+function eNext(from){
+  if(from===1){
+    if(!vv('e-inst')||!vv('e-sektor')||!vv('e-kota')||!vv('e-pengisi')||!vv('e-jabpengisi')||!vv('e-email'))
+      return alert('Mohon lengkapi semua field wajib (*).');
+    eGo(2);
+  }else if(from===2){
+    const miss=eRtgs.find(r=>getR(r.id)===null);
+    if(miss)return alert('Mohon lengkapi semua 7 aspek penilaian kompetensi alumni.');
+    eGo(3);
+  }
+}
+
+async function submitEmployer(){
+  if(!document.querySelector('input[name="epuas"]:checked'))
+    return alert('Mohon pilih tingkat kepuasan keseluruhan.');
+
+  const btn=document.getElementById('btn-submit-employer');
+  const errBox=document.getElementById('e-submit-err');
+  btn.disabled=true; btn.textContent='⏳ Mengirim...';
+  errBox.style.display='none';
+
+  const payload={
+    instansi:vv('e-inst'), sektor:vv('e-sektor'), kota:vv('e-kota'),
+    pengisi:vv('e-pengisi'), jab_pengisi:vv('e-jabpengisi'), email:vv('e-email'), telp:vv('e-telp'),
+    alumni_nama:vv('e-alum'), alumni_jab:vv('e-alum-jab'), lama:vv('e-lama'),
+    rtg_er1:getR('er1'), rtg_er2:getR('er2'), rtg_er3:getR('er3'), rtg_er4:getR('er4'),
+    rtg_er5:getR('er5'), rtg_er6:getR('er6'), rtg_er7:getR('er7'),
+    kepuasan:document.querySelector('input[name="epuas"]:checked')?.value,
+    rekrut:document.querySelector('input[name="erekrut"]:checked')?.value,
+    saran:vv('e-saran'), pesan:vv('e-pesan'),
+  };
+
+  const {error}=await db.from('ts_employer').insert(payload);
+  if(error){
+    errBox.innerHTML=`<strong>Gagal mengirim data.</strong> ${error.message}`;
+    errBox.style.display='block';
+    btn.disabled=false; btn.textContent='✅ Kirim Formulir';
+  }else{
+    show('success');
+  }
+}
+
+// ════ ADMIN ════
+function admLogin(){
+  const p=document.getElementById('adm-pass').value;
+  const err=document.getElementById('log-err');
+  if(p===ADMIN_PASSWORD){
+    err.style.display='none';
+    show('admin');
+    renderAdmin();
+    admTab('ov');
+  }else{
+    err.style.display='block';
+  }
+}
+
+function admTab(n){
+  document.querySelectorAll('.adm-tab').forEach((t,i)=>{
+    const ns=['ov','lam','al','em'];
+    t.classList.toggle('a',ns[i]===n);
+  });
+  document.querySelectorAll('.ap').forEach(p=>p.classList.remove('a'));
+  document.getElementById('ap-'+n).classList.add('a');
+}
+
+let charts={};
+function dChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function countBy(arr,key){const m={};arr.forEach(a=>{const v=a[key]||'N/A';m[v]=(m[v]||0)+1;});return m;}
+const COLS=['#003D5B','#006D77','#C5973A','#1B7A4A','#7B5EA7','#C0392B','#17809B','#834F00','#2563EB','#D97706'];
+
+function mkChart(id,type,labels,data,colors){
+  dChart(id);
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  charts[id]=new Chart(ctx,{
+    type,
+    data:{labels,datasets:[{data,backgroundColor:colors||COLS,borderWidth:0,borderRadius:type==='bar'?4:0}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:type==='bar'?'top':'right',labels:{font:{size:10,family:'DM Sans'},padding:8,boxWidth:10}}},
+      scales:type==='bar'?{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9,family:'DM Sans'}}}}:undefined}
+  });
+}
+
+async function renderAdmin(){
+  // Loading state
+  document.getElementById('sgrid').innerHTML='<div class="loading">⏳ Memuat data dari Supabase...</div>';
+
+  const [{data:al,error:eA},{data:em,error:eE}]=await Promise.all([
+    db.from('ts_alumni').select('*').order('created_at',{ascending:false}),
+    db.from('ts_employer').select('*').order('created_at',{ascending:false}),
+  ]);
+
+  if(eA||eE){
+    document.getElementById('sgrid').innerHTML=`<div class="info-box err"><strong>Gagal memuat data.</strong> ${eA?.message||eE?.message}<br><small>Periksa SUPABASE_URL dan SUPABASE_ANON_KEY.</small></div>`;
+    return;
+  }
+
+  // Stats
+  const bekerja=(al||[]).filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
+  const pctKerja=(al||[]).length?Math.round(bekerja/(al||[]).length*100):0;
+  const relevan=(al||[]).filter(a=>a.kesesuaian==='Sangat Erat'||a.kesesuaian==='Erat').length;
+  const pctRelevan=bekerja?Math.round(relevan/bekerja*100):0;
+
+  const avgRtg=(arr,keys)=>{
+    if(!arr||!arr.length) return '–';
+    const tot=arr.reduce((s,r)=>s+keys.reduce((ss,k)=>ss+(r[k]||0),0),0);
+    return (tot/(arr.length*keys.length)).toFixed(2);
+  };
+  const avg7=avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const avgProdi=avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
+
+  document.getElementById('sgrid').innerHTML=`
+    <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${(al||[]).length}</div></div>
+    <div class="sc"><div class="sl">Respons Instansi</div><div class="sv">${(em||[]).length}</div></div>
+    <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
+    <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
+    <div class="sc"><div class="sl">Rata-rata 7 Aspek</div><div class="sv">${avg7}<span class="su">/5</span></div></div>
+    <div class="sc"><div class="sl">Rata-rata Penilaian Prodi</div><div class="sv">${avgProdi}<span class="su">/5</span></div></div>
+  `;
+
+  // Table alumni
+  document.getElementById('tb-al').innerHTML=(al||[]).length?(al).map(a=>`<tr>
+    <td><strong>${a.nama}</strong></td><td>${a.nim}</td><td>${a.lulus||'–'}</td>
+    <td style="color:var(--teal)">${a.email}</td>
+    <td><span class="bdg bgt">${a.status||'–'}</span></td>
+    <td>${a.instansi||'–'}</td>
+    <td style="font-size:10.5px">${(a.bidang||'–').split('(')[0].trim()}</td>
+    <td>${a.level_kerja||'–'}</td>
+    <td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
+    <td><span class="bdg bgo">${a.kesesuaian||'–'}</span></td>
+    <td>${a.gaji||'–'}</td><td>${a.rekomendasi||'–'}</td>
+    <td style="color:var(--gray-500);white-space:nowrap;font-size:10.5px">${new Date(a.created_at).toLocaleString('id-ID')}</td>
+  </tr>`).join(''):'<tr><td colspan="13"><div class="empty">Belum ada data alumni.</div></td></tr>';
+
+  // Table employer
+  document.getElementById('tb-em').innerHTML=(em||[]).length?(em).map(e=>`<tr>
+    <td><strong>${e.instansi}</strong></td><td style="font-size:10.5px">${e.sektor}</td>
+    <td>${e.kota}</td><td>${e.pengisi}</td>
+    <td style="color:var(--teal)">${e.email}</td>
+    <td>${e.alumni_nama||'–'}</td>
+    <td><span class="bdg bgg">${e.kepuasan||'–'}</span></td>
+    <td>${e.rekrut||'–'}</td>
+    <td style="color:var(--gray-500);white-space:nowrap;font-size:10.5px">${new Date(e.created_at).toLocaleString('id-ID')}</td>
+  </tr>`).join(''):'<tr><td colspan="9"><div class="empty">Belum ada data instansi.</div></td></tr>';
+
+  // Charts
+  if((al||[]).length){
+    const sm=countBy(al,'status'); mkChart('ch-status','doughnut',Object.keys(sm),Object.values(sm));
+    const bm=countBy(al,'bidang');
+    mkChart('ch-bidang','bar',Object.keys(bm).map(k=>k.split('(')[0].trim().substring(0,22)),Object.values(bm),COLS);
+    const tm=countBy(al,'tunggu'); mkChart('ch-tunggu','doughnut',Object.keys(tm),Object.values(tm));
+    const km=countBy(al,'kesesuaian'); mkChart('ch-sesuai','doughnut',Object.keys(km),Object.values(km));
+    const rls=aRtgs.map(r=>r.lbl.substring(0,28));
+    const ks=['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7'];
+    const rav=ks.map(k=>{const vs=al.map(a=>a[k]).filter(Boolean);return vs.length?+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):0;});
+    dChart('ch-rtg');
+    charts['ch-rtg']=new Chart(document.getElementById('ch-rtg'),{
+      type:'bar',
+      data:{labels:rls,datasets:[{label:'Rata-rata (dari 5)',data:rav,backgroundColor:'#006D77',borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:0,max:5},y:{ticks:{font:{size:9,family:'DM Sans'}}}}}
+    });
+  }
+  if((em||[]).length){
+    const pm=countBy(em,'kepuasan'); mkChart('ch-puas','doughnut',Object.keys(pm),Object.values(pm));
+    const e7l=eRtgs.map(r=>r.lbl.substring(0,28));
+    const eks=['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7'];
+    const e7v=eks.map(k=>{const vs=em.map(e=>e[k]).filter(Boolean);return vs.length?+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):0;});
+    dChart('ch-7asp');
+    charts['ch-7asp']=new Chart(document.getElementById('ch-7asp'),{
+      type:'bar',
+      data:{labels:e7l,datasets:[{label:'Rata-rata (dari 5)',data:e7v,backgroundColor:'#003D5B',borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:0,max:5,ticks:{stepSize:1}},y:{ticks:{font:{size:9,family:'DM Sans'}}}}}
+    });
+  }
+
+  // LAM Report
+  const lamDiv=document.getElementById('lam-report');
+  if(!(al||[]).length&&!(em||[]).length){lamDiv.innerHTML='<div class="empty">Belum ada data.</div>';return;}
+  const totalAl=(al||[]).length;
+  const t27b=eRtgs.map((r,i)=>{
+    const k='rtg_er'+(i+1);
+    const vs=(em||[]).map(e=>e[k]).filter(Boolean);
+    const avg=vs.length?+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
+    const pctSB=vs.length?Math.round(vs.filter(v=>v>=4).length/vs.length*100):'-';
+    return{asp:r.lbl,avg,pctSB,n:vs.length};
+  });
+  const t28b1=countBy(al||[],'tunggu');
+  const t28b2=countBy((al||[]).filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')),'kesesuaian');
+
+  lamDiv.innerHTML=`
+    <div class="info-box lam" style="margin-bottom:20px"><strong>📊 Tabel 2.7B — Kepuasan Pengguna Lulusan (${(em||[]).length} responden)</strong>Sesuai IAPS 1.0 LAM PTIP — 7 Aspek Penilaian Kompetensi</div>
+    <div class="tw" style="margin-bottom:24px"><table class="dt">
+      <thead><tr><th>No</th><th>Aspek Penilaian</th><th>n</th><th>Rata-rata</th><th>% Baik/Sangat Baik (≥4)</th></tr></thead>
+      <tbody>${t27b.map((r,i)=>`<tr><td>${i+1}</td><td>${r.asp}</td><td>${r.n}</td><td><strong>${r.avg}</strong>/5</td><td>${r.pctSB}%</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="info-box lam" style="margin-bottom:20px"><strong>📊 Tabel 2.8B1 — Waktu Tunggu Lulusan (${totalAl} responden)</strong></div>
+    <div class="tw" style="margin-bottom:24px"><table class="dt">
+      <thead><tr><th>Kategori Waktu Tunggu</th><th>Jumlah</th><th>Persentase</th></tr></thead>
+      <tbody>${Object.entries(t28b1).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${Math.round(v/totalAl*100)}%</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="info-box lam" style="margin-bottom:20px"><strong>📊 Tabel 2.8B2 — Kesesuaian Bidang Kerja Lulusan (${bekerja} alumni bekerja/wiraswasta)</strong></div>
+    <div class="tw" style="margin-bottom:24px"><table class="dt">
+      <thead><tr><th>Tingkat Kesesuaian</th><th>Jumlah</th><th>Persentase</th></tr></thead>
+      <tbody>${Object.entries(t28b2).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${bekerja?Math.round(v/bekerja*100):0}%</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="info-box warn"><strong>📊 Ringkasan Indikator Kinerja</strong>
+      Total alumni responden: <strong>${totalAl}</strong><br>
+      Alumni bekerja/wiraswasta: <strong>${bekerja}</strong> (${pctKerja}%)<br>
+      Bekerja di bidang relevan (Sangat Erat + Erat): <strong>${relevan}</strong> (${pctRelevan}%)<br>
+      Waktu tunggu &lt; 6 bulan: <strong>${(al||[]).filter(a=>a.tunggu==='WT < 6 bulan').length}</strong><br>
+      Rata-rata penilaian 7 aspek: <strong>${avg7}/5</strong>
+    </div>`;
+}
+
+// ════ CSV EXPORT ════
+async function exportCSV(type){
+  const {data,error}=await db.from(type==='alumni'?'ts_alumni':'ts_employer').select('*').order('created_at',{ascending:false});
+  if(error||!data||!data.length)return alert(error?error.message:'Belum ada data untuk diekspor.');
+  const headers=Object.keys(data[0]);
+  const rows=data.map(d=>headers.map(h=>`"${String(d[h]||'').replace(/"/g,'""')}"`));
+  const csv=[headers.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`tracer_msp_fpik_unsrat_${type}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
