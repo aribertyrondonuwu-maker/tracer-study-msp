@@ -97,10 +97,17 @@ body{font-family:'Outfit',sans-serif;background:var(--cream);color:var(--g800);m
 .rc.admin:hover{border-color:var(--g500);}
 .rc.tentang:hover{border-color:var(--blue);}
 .rc.statistik:hover{border-color:#7B5EA7;}
+.rc-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;
+  border-radius:20px;background:var(--teal-pale);color:var(--teal-dk);
+  border:1px solid rgba(0,109,119,.2);letter-spacing:.4px;margin-bottom:10px;}
 .rc.tentang .rc-ico{background:var(--blue-bg);}
 .rc.statistik .rc-ico{background:#f3f0ff;}
+.rc.stakeholder .rc-ico{background:var(--green-bg);}
 .rc.tentang .rc-btn{background:var(--blue);color:#fff;}
 .rc.statistik .rc-btn{background:#7B5EA7;color:#fff;}
+.rc.stakeholder .rc-btn{background:var(--green);color:#fff;}
+.rc.stakeholder:hover{border-color:var(--green);}
+.rc.stakeholder .rc-btn:hover{background:#155d3a;}
 
 /* ══ TENTANG SCREEN ══ */
 .tentang-wrap{max-width:860px;margin:32px auto;padding:0 20px 60px;}
@@ -390,27 +397,24 @@ table.dt tr:hover td{background:var(--g50);}
   <div class="cards">
     <div class="rc alumni" onclick="startForm('alumni')">
       <div class="rc-ico">🎓</div>
+      <div class="rc-badge">Tabel 2.8B1 &amp; 2.8B2</div>
       <h3>Formulir Alumni</h3>
       <p>Untuk lulusan Prodi S1 MSP FPIK UNSRAT. Isi data karir, penilaian kompetensi, dan saran pengembangan prodi.</p>
       <button class="rc-btn">Isi Formulir Alumni →</button>
     </div>
     <div class="rc employer" onclick="startForm('employer')">
       <div class="rc-ico">🏢</div>
+      <div class="rc-badge" style="background:var(--gold-lt);color:var(--gold-dk);border-color:rgba(197,151,58,.25)">Tabel 2.7B</div>
       <h3>Pengguna Lulusan</h3>
       <p>Untuk instansi / perusahaan yang mempekerjakan alumni MSP. Penilaian 7 aspek kompetensi sesuai LAM PTIP Tabel 2.7B.</p>
       <button class="rc-btn">Isi Formulir Instansi →</button>
     </div>
-    <div class="rc admin" onclick="showAdmin()">
-      <div class="rc-ico">📊</div>
-      <h3>Dashboard Admin</h3>
-      <p>Pengelola prodi. Akses data, analitik, dan ekspor laporan untuk kebutuhan akreditasi LAM PTIP.</p>
-      <button class="rc-btn">Masuk Dashboard →</button>
-    </div>
-    <div class="rc tentang" onclick="showTentang()">
-      <div class="rc-ico">ℹ️</div>
-      <h3>Tentang Tracer Study</h3>
-      <p>Informasi lengkap tentang Tracer Study PS-MSP FPIK UNSRAT, dasar hukum, dan tujuan LAM-PTIP IAPS 1.0.</p>
-      <button class="rc-btn">Selengkapnya →</button>
+    <div class="rc stakeholder" onclick="startForm('stakeholder')">
+      <div class="rc-ico">🏛️</div>
+      <div class="rc-badge" style="background:var(--green-bg);color:var(--green);border-color:rgba(27,122,74,.2)">Tabel 2.7C</div>
+      <h3>Survei Kepuasan Stakeholder</h3>
+      <p>Untuk Mahasiswa, Dosen, Tenaga Kependidikan, Mitra, dan Lulusan. Penilaian layanan Prodi MSP sesuai Tabel 2.7C LAM PTIP.</p>
+      <button class="rc-btn">Isi Survei →</button>
     </div>
     <div class="rc statistik" onclick="showStatistik()">
       <div class="rc-ico">📈</div>
@@ -418,11 +422,17 @@ table.dt tr:hover td{background:var(--g50);}
       <p>Ringkasan statistik responden tracer study yang dapat diakses publik tanpa perlu login.</p>
       <button class="rc-btn">Lihat Statistik →</button>
     </div>
-    <div class="rc" onclick="startForm('stakeholder')" style="border:1.5px solid transparent">
-      <div class="rc-ico" style="background:var(--green-bg)">🏛️</div>
-      <h3>Survei Kepuasan Stakeholder</h3>
-      <p>Untuk Mahasiswa, Dosen, Tenaga Kependidikan, dan Mitra. Penilaian layanan Prodi MSP sesuai Tabel 2.7C LAM PTIP.</p>
-      <button class="rc-btn" style="background:var(--green);color:#fff">Isi Survei →</button>
+    <div class="rc tentang" onclick="showTentang()">
+      <div class="rc-ico">ℹ️</div>
+      <h3>Tentang Tracer Study</h3>
+      <p>Informasi lengkap tentang Tracer Study PS-MSP FPIK UNSRAT, dasar hukum, dan tujuan LAM-PTIP IAPS 1.0.</p>
+      <button class="rc-btn">Selengkapnya →</button>
+    </div>
+    <div class="rc admin" onclick="showAdmin()">
+      <div class="rc-ico">📊</div>
+      <h3>Dashboard Admin</h3>
+      <p>Pengelola prodi. Akses data, analitik, dan ekspor laporan untuk kebutuhan akreditasi LAM PTIP.</p>
+      <button class="rc-btn">Masuk Dashboard →</button>
     </div>
   </div>
 </div>
@@ -754,17 +764,7 @@ table.dt tr:hover td{background:var(--g50);}
       <div class="f"><label>Nama Lengkap <span class="req">*</span></label><input id="sk-nama" type="text" placeholder="Nama Anda"></div>
       <div class="f"><label>Instansi / Unit <span class="req">*</span></label><input id="sk-instansi" type="text" placeholder="Nama instansi, unit, atau program studi"></div>
     </div>
-    <div class="f-row">
-      <div class="f"><label>Email (opsional)</label><input id="sk-email" type="email" placeholder="email@domain.com"></div>
-      <div class="f"><label>Tahun Survei <span class="req">*</span></label>
-        <select id="sk-tahun">
-          <option value="">-- Pilih Tahun --</option>
-          <option value="2025">TS — 2025</option>
-          <option value="2024">TS-1 — 2024</option>
-          <option value="2023">TS-2 — 2023</option>
-        </select>
-      </div>
-    </div>
+    <div class="f"><label>Email (opsional)</label><input id="sk-email" type="email" placeholder="email@domain.com"></div>
     <div class="fnav"><button class="btn-n" onclick="_sNext(1)">Lanjut →</button></div>
   </div>
 
@@ -979,7 +979,7 @@ table.dt tr:hover td{background:var(--g50);}
       </div>
       <div class="tw"><table class="dt">
         <thead><tr>
-          <th>Jenis</th><th>Tahun</th><th>Nama</th><th>Instansi</th><th>Email</th>
+          <th>Jenis</th><th>Nama</th><th>Instansi</th><th>Email</th>
           <th title="Kualitas Pengajaran">SK1</th>
           <th title="Relevansi Kurikulum">SK2</th>
           <th title="Fasilitas">SK3</th>
