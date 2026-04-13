@@ -21,23 +21,19 @@ export function admTab(tabId) {
   const user    = getUser();
   const allowed = TAB_ACCESS[user?.role] || [];
 
-  // Cegah admin biasa membuka tab yang tidak diizinkan
   if (!allowed.includes(tabId)) {
     console.warn(`[auth] Role "${user?.role}" tidak boleh akses tab "${tabId}"`);
     tabId = allowed[0] || 'analisis';
   }
 
-  // Highlight tab button
   document.querySelectorAll('.adm-tab').forEach(btn => {
     btn.classList.toggle('a', btn.dataset.tab === tabId);
   });
 
-  // Tampilkan panel
   document.querySelectorAll('.ap').forEach(p => p.classList.remove('a'));
   const panel = document.getElementById(`ap-${tabId}`);
   if (panel) panel.classList.add('a');
 
-  // Lazy-load konten per tab
   switch (tabId) {
     case 'ov':       return renderOverview();
     case 'lam':      return renderLAM();
@@ -48,7 +44,6 @@ export function admTab(tabId) {
   }
 }
 
-// ── Expose ke HTML
 window._admTab = admTab;
 
 // ════════════════════════════════════════════════════════
@@ -58,12 +53,10 @@ let _cache = { al: null, em: null, ts: null };
 
 async function getData() {
   if (_cache.al && _cache.em) return _cache;
-
   const [{ data: al }, { data: em }] = await Promise.all([
     db.from(TBL_ALUMNI).select('*').order('created_at', { ascending: false }),
     db.from(TBL_EMPLOYER).select('*').order('created_at', { ascending: false }),
   ]);
-
   _cache = { al: al || [], em: em || [], ts: Date.now() };
   return _cache;
 }
@@ -75,7 +68,6 @@ export function clearCache() { _cache = { al: null, em: null, ts: null }; }
 // ════════════════════════════════════════════════════════
 async function renderOverview() {
   const { al, em } = await getData();
-
   const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
   const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
   const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
@@ -98,7 +90,6 @@ async function renderOverview() {
     mkChart('ch-bidang', 'bar', Object.fromEntries(bKeys.map((k,i) => [k, Object.values(bidangMap)[i]])));
     mkChart('ch-tunggu', 'doughnut', countBy(al,'tunggu'));
     mkChart('ch-sesuai', 'doughnut', countBy(al,'kesesuaian'));
-    // Horizontal bar — penilaian prodi
     const ks  = ASPEK_PRODI.map(r => r.id.replace('ar','rtg_ar'));
     const rav = ks.map(k => avgOf(al, k));
     mkHBar('ch-rtg', ASPEK_PRODI.map(r => r.lbl.substring(0,32)), rav, '#006D77');
@@ -112,14 +103,13 @@ async function renderOverview() {
 }
 
 // ════════════════════════════════════════════════════════
-//  LAPORAN LAM PTIP (Superadmin only)
+//  LAPORAN LAM PTIP
 // ════════════════════════════════════════════════════════
 async function renderLAM() {
   const { al, em } = await getData();
   const div        = document.getElementById('lam-report');
   if (!al.length && !em.length) { div.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
 
-  // Tabel 2.7B
   const t27b = ASPEK_LAM.map((r, i) => {
     const k   = `rtg_er${i+1}`;
     const vs  = em.map(e => e[k]).filter(Boolean);
@@ -131,7 +121,6 @@ async function renderLAM() {
       <td><strong>${avg}</strong></td></tr>`;
   }).join('');
 
-  // Tabel 2.8B1 — Waktu Tunggu
   const tungguCat = {
     'lt6' : al.filter(a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('Kurang dari 6'))).length,
     '6_18': al.filter(a => a.tunggu && (a.tunggu.includes('6') && !a.tunggu.includes('< 6') || a.tunggu.includes('6 –'))).length,
@@ -140,7 +129,6 @@ async function renderLAM() {
   const totalT = tungguCat.lt6 + tungguCat['6_18'] + tungguCat.gt18 || 1;
   const pctLt6 = Math.round(tungguCat.lt6 / totalT * 100);
 
-  // Tabel 2.8B2 — Tempat Kerja
   const levelCat = {
     lokal       : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal')).length,
     nasional    : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional')).length,
@@ -150,7 +138,6 @@ async function renderLAM() {
   div.innerHTML = `
   <div class="info-box lam" style="margin-bottom:20px">
     <strong>📊 Tabel 2.7B — Kepuasan Pengguna Lulusan (${em.length} responden)</strong>
-    Sesuai IAPS 1.0 LAM PTIP — 7 Aspek Penilaian Kompetensi
   </div>
   <div class="tw" style="margin-bottom:24px">
     <table class="dt">
@@ -158,7 +145,6 @@ async function renderLAM() {
       <tbody>${t27b}</tbody>
     </table>
   </div>
-
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>📊 Tabel 2.8B1 — Waktu Tunggu Lulusan (${al.length} responden)</strong>
   </div>
@@ -175,7 +161,6 @@ async function renderLAM() {
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>WT1 (% lulusan dengan WT &lt; 6 bln) = ${pctLt6}%</strong>
   </div>
-
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>📊 Tabel 2.8B2 — Tempat Kerja / Berwirausaha (${al.length} responden)</strong>
   </div>
@@ -192,18 +177,15 @@ async function renderLAM() {
 }
 
 // ════════════════════════════════════════════════════════
-//  ANALISIS & PEMBAHASAN (Semua role — termasuk Admin)
+//  ANALISIS & PEMBAHASAN
 // ════════════════════════════════════════════════════════
 async function renderAnalisis() {
   const { al, em } = await getData();
-
-  // Cover laporan
   document.getElementById('cover-date').textContent =
     'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
-  // Profil Responden
-  const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
-  const pctKerja   = al.length ? Math.round(bekerja/al.length*100) : 0;
+  const bekerja  = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
+  const pctKerja = al.length ? Math.round(bekerja/al.length*100) : 0;
   document.getElementById('sec-profil').innerHTML = `
     <div class="sg" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
       <div class="sc"><div class="sl">Total Alumni</div><div class="sv">${al.length}</div></div>
@@ -264,8 +246,8 @@ function renderLAM28B2(al) {
 }
 
 function renderRTL(al, em) {
-  const avg7    = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
-  const lt6Pct  = al.length ? Math.round(al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length/al.length*100) : 0;
+  const avg7   = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const lt6Pct = al.length ? Math.round(al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length/al.length*100) : 0;
   document.getElementById('tb-rtl').innerHTML = `
     <tr><td>1</td><td>Kepuasan Pengguna Lulusan</td><td>Rata-rata 7 aspek: ${avg7}/5</td>
         <td>Peningkatan kompetensi bahasa asing & TIK melalui kurikulum</td><td>1 tahun</td><td>Kaprodi</td></tr>
@@ -276,7 +258,7 @@ function renderRTL(al, em) {
 }
 
 // ════════════════════════════════════════════════════════
-//  DATA TABEL (Superadmin only)
+//  DATA TABEL
 // ════════════════════════════════════════════════════════
 async function renderTableAlumni() {
   const { al } = await getData();
@@ -291,7 +273,7 @@ async function renderTableAlumni() {
         <td style="font-size:10.5px;white-space:nowrap">${new Date(a.created_at).toLocaleString('id-ID')}</td>
         <td class="delete-only-superadmin">
           <button onclick="window._deleteRow('${TBL_ALUMNI}','${a.id}')"
-            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer">
             Hapus
           </button>
         </td></tr>`).join('')
@@ -310,16 +292,15 @@ async function renderTableEmployer() {
         <td style="font-size:10.5px;white-space:nowrap">${new Date(e.created_at).toLocaleString('id-ID')}</td>
         <td class="delete-only-superadmin">
           <button onclick="window._deleteRow('${TBL_EMPLOYER}','${e.id}')"
-            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer">
             Hapus
           </button>
         </td></tr>`).join('')
     : '<tr><td colspan="10"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
 }
 
-// ── Hapus baris (superadmin only)
 window._deleteRow = async function(table, id) {
-  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat menghapus data.');
+  if (!isSuperAdmin()) return alert('Akses ditolak.');
   if (!confirm('Yakin hapus data ini?')) return;
   await db.from(table).delete().eq('id', id);
   clearCache();
@@ -327,14 +308,13 @@ window._deleteRow = async function(table, id) {
 };
 
 // ════════════════════════════════════════════════════════
-//  KELOLA ADMIN (Superadmin only)
+//  KELOLA ADMIN
 // ════════════════════════════════════════════════════════
 export async function loadAdmins() {
   if (!isSuperAdmin()) return;
   const { data, error } = await db.from(TBL_ADMINS).select('*').order('created_at');
   if (error) {
-    document.getElementById('tb-admins').innerHTML =
-      `<tr><td colspan="6">Error: ${error.message}</td></tr>`;
+    document.getElementById('tb-admins').innerHTML = `<tr><td colspan="6">Error: ${error.message}</td></tr>`;
     return;
   }
   document.getElementById('tb-admins').innerHTML = (data||[]).map(u => `<tr>
@@ -345,11 +325,11 @@ export async function loadAdmins() {
     <td style="font-size:10.5px">${new Date(u.created_at).toLocaleDateString('id-ID')}</td>
     <td>${u.role!==ROLE.SUPERADMIN?`
       <button onclick="window._toggleAdmin(${u.id},${u.is_active})"
-        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--g200);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--g200);background:#fff;cursor:pointer">
         ${u.is_active?'Nonaktifkan':'Aktifkan'}
       </button>
       <button onclick="window._deleteAdmin(${u.id})"
-        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:4px">
+        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;margin-left:4px">
         Hapus
       </button>`:'–'}
     </td></tr>`).join('');
@@ -363,17 +343,12 @@ export async function addAdmin() {
   const role     = document.getElementById('new-role').value;
   const errBox   = document.getElementById('add-admin-err');
   errBox.style.display = 'none';
-
   if (!username||!password) {
     errBox.textContent='Username dan password wajib diisi.';
     errBox.style.display='block'; return;
   }
-  const { error } = await db.from(TBL_ADMINS)
-    .insert({ username, password, full_name:nama, role, is_active:true });
-  if (error) {
-    errBox.textContent='Gagal: '+error.message;
-    errBox.style.display='block'; return;
-  }
+  const { error } = await db.from(TBL_ADMINS).insert({ username, password, full_name:nama, role, is_active:true });
+  if (error) { errBox.textContent='Gagal: '+error.message; errBox.style.display='block'; return; }
   ['new-username','new-password','new-nama'].forEach(id=>document.getElementById(id).value='');
   loadAdmins();
 }
@@ -389,8 +364,6 @@ window._deleteAdmin = async (id) => {
   await db.from(TBL_ADMINS).delete().eq('id',id);
   loadAdmins();
 };
-
-// ── Expose ke HTML
 window._addAdmin = addAdmin;
 
 // ════════════════════════════════════════════════════════
@@ -406,15 +379,15 @@ export async function generateAINarasi() {
   btn.disabled = true; txt.textContent = 'Menganalisis...';
   load.style.display = 'block'; cont.innerHTML = '';
 
-  const bekerja    = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
-  const pctKerja   = al.length?Math.round(bekerja/al.length*100):0;
-  const avg7       = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
-  const avgProdi   = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
-  const lt6        = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
-  const pctLt6     = al.length?Math.round(lt6/al.length*100):0;
+  const bekerja  = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
+  const pctKerja = al.length?Math.round(bekerja/al.length*100):0;
+  const avg7     = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const avgProdi = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
+  const lt6      = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const pctLt6   = al.length?Math.round(lt6/al.length*100):0;
 
-  const prompt = `Anda adalah analis akademik untuk akreditasi LAM PTIP (laman: lamptip.or.id). 
-Buatlah narasi pembahasan hasil tracer study Program Studi Manajemen Sumberdaya Perairan (MSP) FPIK UNSRAT 
+  const prompt = `Anda adalah analis akademik untuk akreditasi LAM PTIP.
+Buatlah narasi pembahasan hasil tracer study Program Studi Manajemen Sumber Daya Perairan (MSP) FPIK UNSRAT
 dalam bahasa Indonesia yang formal dan akademis (±500 kata).
 
 DATA TRACER STUDY:
@@ -438,11 +411,7 @@ Struktur narasi:
     const res  = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1200,
-        messages:[{role:'user',content:prompt}]
-      })
+      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1200, messages:[{role:'user',content:prompt}] })
     });
     const data = await res.json();
     const text = data.content?.[0]?.text || 'Gagal mendapatkan respons AI.';
@@ -457,10 +426,10 @@ Struktur narasi:
 window._generateAI = generateAINarasi;
 
 // ════════════════════════════════════════════════════════
-//  EXPORT
+//  EXPORT — CSV Alumni & Employer
 // ════════════════════════════════════════════════════════
 export async function exportCSV(type) {
-  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat mengekspor data.');
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
   const { al, em } = await getData();
   const data = type==='alumni' ? al : em;
   if (!data.length) return alert('Belum ada data untuk diekspor.');
@@ -469,31 +438,259 @@ export async function exportCSV(type) {
   const csv     = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
   const a       = document.createElement('a');
   a.href        = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
-  a.download    = `tracer_msp_fpik_unsrat_${type}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download    = `tracer_msp_${type}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
-export function printLaporan() { window.print(); }
-
+// ════════════════════════════════════════════════════════
+//  EXPORT EXCEL (.xlsx) — menggunakan SheetJS CDN
+// ════════════════════════════════════════════════════════
 export async function exportExcel() {
-  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat mengekspor data.');
-  admTab('analisis');
-  setTimeout(() => {
-    const area = document.getElementById('print-area');
-    if (!area) return alert('Data belum dimuat. Buka tab Analisis terlebih dahulu.');
-    const csvContent = area.innerText;
-    const blob = new Blob(['\uFEFF'+csvContent],{type:'text/csv;charset=utf-8'});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href=url; a.download=`Laporan_TracerStudy_MSP_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-  }, 400);
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
+  const { al, em } = await getData();
+  if (!al.length && !em.length) return alert('Belum ada data.');
+
+  // Load SheetJS jika belum ada
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const XLSX  = window.XLSX;
+  const wb    = XLSX.utils.book_new();
+  const tgl   = new Date().toLocaleDateString('id-ID');
+
+  // Sheet 1 — Data Alumni
+  if (al.length) {
+    const wsAl = XLSX.utils.json_to_sheet(al.map(a => ({
+      'Nama'        : a.nama||'',
+      'NIM'         : a.nim||'',
+      'Thn Masuk'   : a.masuk||'',
+      'Thn Lulus'   : a.lulus||'',
+      'Email'       : a.email||'',
+      'HP'          : a.hp||'',
+      'Gender'      : a.gender||'',
+      'IPK'         : a.ipk||'',
+      'Status'      : a.status||'',
+      'Waktu Tunggu': a.tunggu||'',
+      'Instansi'    : a.instansi||'',
+      'Jabatan'     : a.jabatan||'',
+      'Kota'        : a.kota||'',
+      'Bidang'      : a.bidang||'',
+      'Level Kerja' : a.level_kerja||'',
+      'Gaji'        : a.gaji||'',
+      'Kesesuaian'  : a.kesesuaian||'',
+      'Rekomendasi' : a.rekomendasi||'',
+      'Rtg AR1'     : a.rtg_ar1||'',
+      'Rtg AR2'     : a.rtg_ar2||'',
+      'Rtg AR3'     : a.rtg_ar3||'',
+      'Rtg AR4'     : a.rtg_ar4||'',
+      'Rtg AR5'     : a.rtg_ar5||'',
+      'Rtg AR6'     : a.rtg_ar6||'',
+      'Rtg AR7'     : a.rtg_ar7||'',
+      'Tgl Isi'     : new Date(a.created_at).toLocaleDateString('id-ID'),
+    })));
+    XLSX.utils.book_append_sheet(wb, wsAl, 'Data Alumni');
+  }
+
+  // Sheet 2 — Data Pengguna Lulusan
+  if (em.length) {
+    const wsEm = XLSX.utils.json_to_sheet(em.map(e => ({
+      'Instansi'    : e.instansi||'',
+      'Sektor'      : e.sektor||'',
+      'Kota'        : e.kota||'',
+      'Pengisi'     : e.pengisi||'',
+      'Jabatan'     : e.jab_pengisi||'',
+      'Email'       : e.email||'',
+      'Telp'        : e.telp||'',
+      'Alumni'      : e.alumni_nama||'',
+      'Jab Alumni'  : e.alumni_jab||'',
+      'Lama Kerja'  : e.lama||'',
+      'Rtg ER1'     : e.rtg_er1||'',
+      'Rtg ER2'     : e.rtg_er2||'',
+      'Rtg ER3'     : e.rtg_er3||'',
+      'Rtg ER4'     : e.rtg_er4||'',
+      'Rtg ER5'     : e.rtg_er5||'',
+      'Rtg ER6'     : e.rtg_er6||'',
+      'Rtg ER7'     : e.rtg_er7||'',
+      'Kepuasan'    : e.kepuasan||'',
+      'Rekrut'      : e.rekrut||'',
+      'Tgl Isi'     : new Date(e.created_at).toLocaleDateString('id-ID'),
+    })));
+    XLSX.utils.book_append_sheet(wb, wsEm, 'Pengguna Lulusan');
+  }
+
+  // Sheet 3 — Tabel 2.7B LAM PTIP
+  const t27b = ASPEK_LAM.map((r,i) => {
+    const k  = `rtg_er${i+1}`;
+    const vs = em.map(e=>e[k]).filter(Boolean);
+    const avg= vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
+    const cnt= {sb:0,b:0,c:0,k:0};
+    vs.forEach(v=>{if(v>=4)cnt.sb++;else if(v>=3)cnt.b++;else if(v>=2)cnt.c++;else cnt.k++;});
+    return { 'No':i+1, 'Aspek Kompetensi':r.lbl, 'Sangat Baik(4)':cnt.sb, 'Baik(3)':cnt.b, 'Cukup(2)':cnt.c, 'Kurang(1)':cnt.k, 'Rata-rata':avg };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t27b), 'Tabel 2.7B LAM');
+
+  // Sheet 4 — Tabel 2.8B1 Waktu Tunggu
+  const lt6  = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const mid  = al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length;
+  const gt18 = al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length;
+  const tot  = lt6+mid+gt18||1;
+  const t28b1= [
+    { 'Kategori':'WT < 6 bulan',      'Jumlah':lt6,  'Persentase': Math.round(lt6/tot*100)+'%' },
+    { 'Kategori':'6 ≤ WT ≤ 18 bulan', 'Jumlah':mid,  'Persentase': Math.round(mid/tot*100)+'%' },
+    { 'Kategori':'WT > 18 bulan',     'Jumlah':gt18, 'Persentase': Math.round(gt18/tot*100)+'%' },
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t28b1), 'Tabel 2.8B1 WT');
+
+  // Sheet 5 — Tabel 2.8B2 Tempat Kerja
+  const lok = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length;
+  const nas = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length;
+  const mul = al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length;
+  const t28b2= [
+    { 'Tingkat':'Lokal/Wilayah/Wirausaha',   'Jumlah':lok, 'Persentase': Math.round(lok/al.length*100||0)+'%' },
+    { 'Tingkat':'Nasional/Berbadan Hukum',    'Jumlah':nas, 'Persentase': Math.round(nas/al.length*100||0)+'%' },
+    { 'Tingkat':'Multinasional/Internasional','Jumlah':mul, 'Persentase': Math.round(mul/al.length*100||0)+'%' },
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t28b2), 'Tabel 2.8B2 TK');
+
+  XLSX.writeFile(wb, `Laporan_TracerStudy_MSP_FPIK_UNSRAT_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// ── Expose ke HTML
-window._exportCSV   = exportCSV;
-window._printLaporan= printLaporan;
-window._exportExcel = exportExcel;
+// ════════════════════════════════════════════════════════
+//  EXPORT WORD (.docx) — menggunakan docx.js CDN
+// ════════════════════════════════════════════════════════
+export async function exportWord() {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
+  const { al, em } = await getData();
+
+  // Load docx library
+  if (!window.docx) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/docx@8.5.0/build/index.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const { Document, Paragraph, Table, TableRow, TableCell,
+          TextRun, HeadingLevel, AlignmentType, WidthType,
+          BorderStyle, Packer } = window.docx;
+
+  const tgl   = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  const avg7  = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const lt6   = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const pctLt6= al.length?Math.round(lt6/al.length*100):0;
+
+  // Helper buat baris tabel
+  const mkRow = (cells, bold=false) => new TableRow({
+    children: cells.map(c => new TableCell({
+      children: [new Paragraph({ children:[new TextRun({text:String(c),bold,size:20})] })],
+      width:{ size: Math.floor(9000/cells.length), type: WidthType.DXA }
+    }))
+  });
+
+  // Tabel 2.7B rows
+  const rows27b = ASPEK_LAM.map((r,i) => {
+    const k  = `rtg_er${i+1}`;
+    const vs = em.map(e=>e[k]).filter(Boolean);
+    const avg= vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
+    const cnt={sb:0,b:0,c:0,k:0};
+    vs.forEach(v=>{if(v>=4)cnt.sb++;else if(v>=3)cnt.b++;else if(v>=2)cnt.c++;else cnt.k++;});
+    return mkRow([i+1, r.lbl, cnt.sb, cnt.b, cnt.c, cnt.k, avg]);
+  });
+
+  const doc = new Document({ sections:[{ children:[
+    // Kop
+    new Paragraph({ text:'LAPORAN TRACER STUDY', heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }),
+    new Paragraph({ text:'Program Studi Manajemen Sumber Daya Perairan', heading:HeadingLevel.HEADING_2, alignment:AlignmentType.CENTER }),
+    new Paragraph({ text:'Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi', alignment:AlignmentType.CENTER, children:[new TextRun({text:'Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi',size:22})] }),
+    new Paragraph({ text:`Dicetak: ${tgl}`, alignment:AlignmentType.CENTER, children:[new TextRun({text:`Dicetak: ${tgl}`,size:20,color:'666666'})] }),
+    new Paragraph(''),
+
+    // Ringkasan
+    new Paragraph({ text:'A. Ringkasan Data', heading:HeadingLevel.HEADING_2 }),
+    new Paragraph({ children:[new TextRun({text:`• Total Responden Alumni       : ${al.length} orang`,size:22})] }),
+    new Paragraph({ children:[new TextRun({text:`• Total Responden Instansi     : ${em.length} instansi`,size:22})] }),
+    new Paragraph({ children:[new TextRun({text:`• Rata-rata 7 Aspek LAM PTIP  : ${avg7} / 5`,size:22})] }),
+    new Paragraph({ children:[new TextRun({text:`• Lulusan WT < 6 bulan        : ${pctLt6}%`,size:22})] }),
+    new Paragraph(''),
+
+    // Tabel 2.7B
+    new Paragraph({ text:'B. Tabel 2.7B — Kepuasan Pengguna Lulusan', heading:HeadingLevel.HEADING_2 }),
+    new Table({ rows:[
+      mkRow(['No','Aspek Kompetensi','Sangat Baik(4)','Baik(3)','Cukup(2)','Kurang(1)','Rata-rata'], true),
+      ...rows27b
+    ]}),
+    new Paragraph(''),
+
+    // Tabel 2.8B1
+    new Paragraph({ text:'C. Tabel 2.8B1 — Waktu Tunggu Lulusan', heading:HeadingLevel.HEADING_2 }),
+    new Table({ rows:[
+      mkRow(['Kategori Waktu Tunggu','Jumlah','Persentase'], true),
+      mkRow(['WT < 6 bulan', lt6, pctLt6+'%']),
+      mkRow(['6 ≤ WT ≤ 18 bulan', al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length, '-']),
+      mkRow(['WT > 18 bulan', al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length, '-']),
+    ]}),
+    new Paragraph(''),
+
+    // Tabel 2.8B2
+    new Paragraph({ text:'D. Tabel 2.8B2 — Tingkat Tempat Kerja', heading:HeadingLevel.HEADING_2 }),
+    new Table({ rows:[
+      mkRow(['Tingkat Tempat Kerja','Jumlah','Persentase'], true),
+      mkRow(['Lokal/Wilayah/Wirausaha', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length, '-']),
+      mkRow(['Nasional/Berbadan Hukum', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length, '-']),
+      mkRow(['Multinasional/Internasional', al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length, '-']),
+    ]}),
+  ]}]});
+
+  const blob = await Packer.toBlob(doc);
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`Laporan_TracerStudy_MSP_FPIK_UNSRAT_${new Date().toISOString().slice(0,10)}.docx`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ════════════════════════════════════════════════════════
+//  EXPORT PDF — via Print dialog (CSS print)
+// ════════════════════════════════════════════════════════
+export function exportPDF() {
+  admTab('analisis');
+  setTimeout(() => {
+    const style = document.createElement('style');
+    style.id = 'pdf-print-style';
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #print-area, #print-area * { visibility: visible; }
+        #print-area { position: fixed; top: 0; left: 0; width: 100%; }
+        .exp-btn, button, #btn-ai { display: none !important; }
+      }`;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => {
+      const el = document.getElementById('pdf-print-style');
+      if (el) el.remove();
+    }, 1500);
+  }, 500);
+}
+
+// ════════════════════════════════════════════════════════
+//  PRINT LAPORAN
+// ════════════════════════════════════════════════════════
+export function printLaporan() { window.print(); }
+
+// ── Expose semua ke HTML
+window._exportCSV    = exportCSV;
+window._exportExcel  = exportExcel;
+window._exportWord   = exportWord;
+window._exportPDF    = exportPDF;
+window._printLaporan = printLaporan;
 
 // ════════════════════════════════════════════════════════
 //  CHART HELPERS
@@ -504,13 +701,11 @@ function mkChart(id, type, dataMap) {
   dChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  const labels = Object.keys(dataMap);
-  const data   = Object.values(dataMap);
   charts[id] = new Chart(ctx, {
     type,
-    data:{labels,datasets:[{data,backgroundColor:CHART_COLORS,borderWidth:0,borderRadius:type==='bar'?4:0}]},
+    data:{labels:Object.keys(dataMap),datasets:[{data:Object.values(dataMap),backgroundColor:CHART_COLORS,borderWidth:0,borderRadius:type==='bar'?4:0}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:type==='bar'?'top':'right',labels:{font:{size:10,family:'DM Sans'},padding:8,boxWidth:10}}},
+      plugins:{legend:{position:type==='bar'?'top':'right',labels:{font:{size:10},padding:8,boxWidth:10}}},
       scales:type==='bar'?{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9}}}}:undefined}
   });
 }
@@ -524,11 +719,10 @@ function mkHBar(id, labels, data, color) {
     data:{labels,datasets:[{label:'Rata-rata',data,backgroundColor:color,borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
       plugins:{legend:{display:false}},
-      scales:{x:{min:0,max:5,ticks:{stepSize:1}},y:{ticks:{font:{size:9,family:'DM Sans'}}}}}
+      scales:{x:{min:0,max:5,ticks:{stepSize:1}},y:{ticks:{font:{size:9}}}}}
   });
 }
 
-// ── Statistik helpers
 function countBy(arr, key) {
   const m={};arr.forEach(a=>{const v=a[key]||'N/A';m[v]=(m[v]||0)+1;});return m;
 }

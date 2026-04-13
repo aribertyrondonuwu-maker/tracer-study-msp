@@ -807,8 +807,10 @@ table.dt tr:hover td{background:var(--g50);}
       <!-- Export toolbar — hanya superadmin -->
       <div class="cc export-only-superadmin" style="padding:14px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
         <span style="font-size:12px;font-weight:700;color:var(--navy);margin-right:6px">EKSPOR &amp; CETAK:</span>
-        <button class="exp-btn" onclick="_exportExcel()" style="border-color:var(--green);color:var(--green);font-weight:600">📊 Excel (.csv)</button>
-        <button class="exp-btn" onclick="_printLaporan()" style="border-color:var(--navy);color:var(--navy);font-weight:600">🖨️ Cetak / PDF</button>
+        <button class="exp-btn" onclick="_exportWord()" style="border-color:#2563EB;color:#2563EB;font-weight:600">📝 Word (.docx)</button>
+        <button class="exp-btn" onclick="_exportExcel()" style="border-color:var(--green);color:var(--green);font-weight:600">📊 Excel (.xlsx)</button>
+        <button class="exp-btn" onclick="_exportPDF()" style="border-color:#C0392B;color:#C0392B;font-weight:600">📄 PDF</button>
+        <button class="exp-btn" onclick="_printLaporan()" style="border-color:var(--navy);color:var(--navy);font-weight:600">🖨️ Cetak</button>
         <div style="margin-left:auto">
           <button class="btn-n" onclick="_generateAI()" id="btn-ai" style="font-size:12px;padding:8px 16px;gap:6px">
             <span>✨</span><span id="btn-ai-txt">Generate Narasi AI</span>
