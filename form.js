@@ -17,19 +17,20 @@ export function getR(id) {
   return s ? +s.dataset.v : null;
 }
 
-// ── Render rating group
+// ── Render rating group (skala 4: Kurang, Cukup, Baik, Sangat Baik)
+const RTG_LABELS = ['Kurang', 'Cukup', 'Baik', 'Sangat Baik'];
+
 export function buildRatings(items, containerId) {
   document.getElementById(containerId).innerHTML = items.map(r => `
     <div class="f">
       <label>${r.lbl} <span class="req">*</span></label>
       <div class="rtg-grp" id="${r.id}">
-        ${[1,2,3,4,5].map(n =>
+        ${[1,2,3,4].map(n =>
           `<button type="button" class="rtg-btn"
             onclick="window._selR('${r.id}',${n})"
-            data-v="${n}">${n}</button>`
+            data-v="${n}">${RTG_LABELS[n-1]}</button>`
         ).join('')}
       </div>
-      <div class="rtg-lbl"><span>Sangat Kurang</span><span>Sangat Baik</span></div>
     </div>`).join('');
 }
 
