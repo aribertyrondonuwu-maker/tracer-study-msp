@@ -6,7 +6,7 @@
 // ══════════════════════════════════════════════════════════
 
 import { db }     from './db.js';
-import { TBL_STAKEHOLDER } from './config.js';
+import { TBL_STAKEHOLDER, TAHUN_OPTIONS } from './config.js';
 import { vv, rad, requireFields } from './form.js';
 import { router } from './app.js';
 
@@ -68,6 +68,7 @@ export function sNext(from) {
   switch (from) {
     case 1:
       if (!rad('sk-jenis')) return alert('Mohon pilih jenis stakeholder Anda.');
+      if (!vv('sk-tahun')) return alert('Mohon pilih tahun survei.');
       if (!requireFields(['sk-nama', 'sk-instansi'])) return;
       return sGo(2);
 
@@ -99,10 +100,11 @@ export async function submitStakeholder() {
   errBox.style.display = 'none';
 
   const payload = {
-    jenis      : rad('sk-jenis'),
-    nama       : vv('sk-nama'),
-    instansi   : vv('sk-instansi'),
-    email      : vv('sk-email'),
+    tahun_survei : parseInt(vv('sk-tahun')),
+    jenis        : rad('sk-jenis'),
+    nama         : vv('sk-nama'),
+    instansi     : vv('sk-instansi'),
+    email        : vv('sk-email'),
     // 7 aspek penilaian
     rtg_sk1 : getSkR('sk1'), rtg_sk2 : getSkR('sk2'), rtg_sk3 : getSkR('sk3'),
     rtg_sk4 : getSkR('sk4'), rtg_sk5 : getSkR('sk5'), rtg_sk6 : getSkR('sk6'),

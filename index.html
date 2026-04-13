@@ -754,7 +754,17 @@ table.dt tr:hover td{background:var(--g50);}
       <div class="f"><label>Nama Lengkap <span class="req">*</span></label><input id="sk-nama" type="text" placeholder="Nama Anda"></div>
       <div class="f"><label>Instansi / Unit <span class="req">*</span></label><input id="sk-instansi" type="text" placeholder="Nama instansi, unit, atau program studi"></div>
     </div>
-    <div class="f"><label>Email (opsional)</label><input id="sk-email" type="email" placeholder="email@domain.com"></div>
+    <div class="f-row">
+      <div class="f"><label>Email (opsional)</label><input id="sk-email" type="email" placeholder="email@domain.com"></div>
+      <div class="f"><label>Tahun Survei <span class="req">*</span></label>
+        <select id="sk-tahun">
+          <option value="">-- Pilih Tahun --</option>
+          <option value="2025">TS — 2025</option>
+          <option value="2024">TS-1 — 2024</option>
+          <option value="2023">TS-2 — 2023</option>
+        </select>
+      </div>
+    </div>
     <div class="fnav"><button class="btn-n" onclick="_sNext(1)">Lanjut →</button></div>
   </div>
 
@@ -969,7 +979,7 @@ table.dt tr:hover td{background:var(--g50);}
       </div>
       <div class="tw"><table class="dt">
         <thead><tr>
-          <th>Jenis</th><th>Nama</th><th>Instansi</th><th>Email</th>
+          <th>Jenis</th><th>Tahun</th><th>Nama</th><th>Instansi</th><th>Email</th>
           <th title="Kualitas Pengajaran">SK1</th>
           <th title="Relevansi Kurikulum">SK2</th>
           <th title="Fasilitas">SK3</th>

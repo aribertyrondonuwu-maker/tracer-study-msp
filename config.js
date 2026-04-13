@@ -48,6 +48,18 @@ export const ASPEK_PRODI = [
   { id:'ar7', lbl:'Pelayanan Administrasi Akademik' },
 ];
 
+// ── Tahun Survei (LAM PTIP)
+export const TAHUN_SURVEI = {
+  TS   : 2025,
+  TS_1 : 2024,
+  TS_2 : 2023,
+};
+export const TAHUN_OPTIONS = [
+  { value: 2025, label: 'TS (2025)' },
+  { value: 2024, label: 'TS-1 (2024)' },
+  { value: 2023, label: 'TS-2 (2023)' },
+];
+
 // ── Warna chart
 export const CHART_COLORS = [
   '#003D5B','#006D77','#C5973A','#1B7A4A',

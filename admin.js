@@ -8,7 +8,7 @@
 import { db }       from './db.js';
 import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER,
          ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
-         TAB_ACCESS, ROLE } from './config.js';
+         TAB_ACCESS, ROLE, TAHUN_SURVEI } from './config.js';
 import { getUser, isSuperAdmin } from './auth.js';
 import { ASPEK_KEPUASAN } from './stakeholder.js';
 
@@ -317,73 +317,196 @@ async function renderTableEmployer() {
 }
 
 // ════════════════════════════════════════════════════════
-//  TABEL 2.7C — KEPUASAN STAKEHOLDER
+//  TABEL 2.7C — KEPUASAN STAKEHOLDER (Format LAM PTIP Lengkap)
 // ════════════════════════════════════════════════════════
+
+// Simpan data populasi & instrumen & tindak lanjut di localStorage-like (db tabel ts_sk_config)
+const SK_CONFIG_KEY = 'sk_27c_config';
+
+function getSkConfig() {
+  try { return JSON.parse(localStorage.getItem(SK_CONFIG_KEY) || '{}'); } catch { return {}; }
+}
+function saveSkConfig(cfg) {
+  localStorage.setItem(SK_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+const JENIS_LIST = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+const TAHUN = { TS: TAHUN_SURVEI.TS, TS1: TAHUN_SURVEI.TS_1, TS2: TAHUN_SURVEI.TS_2 };
+
 function render27CTable(sk) {
-  if (!sk.length) return '<p style="color:var(--g500);font-size:13px;padding:12px">Belum ada data stakeholder.</p>';
+  const cfg = getSkConfig();
 
-  const JENIS = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+  const headerRow = `
+    <thead>
+      <tr style="background:var(--navy);color:#fff;font-size:11px">
+        <th rowspan="3" style="text-align:center;vertical-align:middle;width:30px">No</th>
+        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:110px">Stakeholder</th>
+        <th colspan="2" style="text-align:center">Instrumen</th>
+        <th colspan="3" style="text-align:center">Jumlah Responden</th>
+        <th colspan="3" style="text-align:center">% Keterwakilan Responden</th>
+        <th colspan="4" style="text-align:center">Jml Responden Menjawab (SB=4, B=3, C=2, K=1)</th>
+        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:60px">Skor</th>
+        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:120px">Tindak Lanjut</th>
+      </tr>
+      <tr style="background:var(--navy-md);color:#fff;font-size:10px">
+        <th style="text-align:center">Ada</th>
+        <th style="text-align:center">Tidak Ada</th>
+        <th style="text-align:center">TS-2<br>(${TAHUN.TS2})</th>
+        <th style="text-align:center">TS-1<br>(${TAHUN.TS1})</th>
+        <th style="text-align:center">TS<br>(${TAHUN.TS})</th>
+        <th style="text-align:center">TS-2<br>(${TAHUN.TS2})</th>
+        <th style="text-align:center">TS-1<br>(${TAHUN.TS1})</th>
+        <th style="text-align:center">TS<br>(${TAHUN.TS})</th>
+        <th style="text-align:center">SB</th>
+        <th style="text-align:center">B</th>
+        <th style="text-align:center">C</th>
+        <th style="text-align:center">KB</th>
+      </tr>
+      <tr style="background:var(--g100);font-size:10px;color:var(--g600)">
+        <th style="text-align:center">(3)</th><th style="text-align:center">(4)</th>
+        <th style="text-align:center">(5)</th><th style="text-align:center">(6)</th><th style="text-align:center">(7)</th>
+        <th style="text-align:center">(8)</th><th style="text-align:center">(9)</th><th style="text-align:center">(10)</th>
+        <th style="text-align:center">(11)</th><th style="text-align:center">(12)</th>
+        <th style="text-align:center">(13)</th><th style="text-align:center">(14)</th>
+      </tr>
+    </thead>`;
 
-  const rows = JENIS.map((j, idx) => {
-    const group = sk.filter(x => x.jenis === j);
-    const n     = group.length;
-    if (!n) return `<tr><td>${idx+1}</td><td>${j}</td><td colspan="10" style="text-align:center;color:var(--g500);font-size:11px">–</td></tr>`;
+  const rows = JENIS_LIST.map((j, idx) => {
+    const no    = idx < 6 ? idx + 1 : '...';
+    const jKey  = j.replace(/\s+/g,'_');
+    const c     = cfg[jKey] || {};
 
-    // Hitung rata-rata per aspek lalu skor keseluruhan
+    // Responden per tahun dari DB
+    const rTS2  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS2).length;
+    const rTS1  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS1).length;
+    const rTS   = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS).length;
+
+    // Populasi (input manual admin)
+    const popTS2 = parseInt(c.popTS2 || 0);
+    const popTS1 = parseInt(c.popTS1 || 0);
+    const popTS  = parseInt(c.popTS  || 0);
+
+    const pct = (r, p) => (p > 0 ? Math.round(r / p * 100) + '%' : '–');
+
+    // SB/B/C/KB hanya dari TS (tahun terbaru) — sesuai format LAM PTIP kolom 11-14
+    const grpTS = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS);
     const keys  = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
-    const avgAll= keys.map(k => {
-      const vs = group.map(x=>x[k]).filter(Boolean);
-      return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : 0;
-    });
-    const skor  = (avgAll.reduce((a,b)=>a+b,0)/avgAll.length).toFixed(2);
-
-    // Hitung SB/B/C/K berdasarkan rata-rata per responden
     const cnt   = { SB:0, B:0, C:0, K:0 };
-    group.forEach(x => {
-      const vals = keys.map(k=>x[k]).filter(Boolean);
+    grpTS.forEach(x => {
+      const vals = keys.map(k => x[k]).filter(Boolean);
       if (!vals.length) return;
-      const avg  = vals.reduce((a,b)=>a+b,0)/vals.length;
-      if (avg >= 3.5)      cnt.SB++;
-      else if (avg >= 2.5) cnt.B++;
-      else if (avg >= 1.5) cnt.C++;
-      else                 cnt.K++;
+      const avg = vals.reduce((a,b) => a+b, 0) / vals.length;
+      if (avg >= 3.5) cnt.SB++; else if (avg >= 2.5) cnt.B++;
+      else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    const pct   = v => n ? Math.round(v/n*100) : 0;
-    const badge = skor>=3.5?'bgg':skor>=2.5?'bgt':skor>=1.5?'bgo':'';
+    // Skor rata-rata dari semua tahun
+    const allGrp = sk.filter(x => x.jenis === j);
+    let skor = '–';
+    if (allGrp.length) {
+      const tot = allGrp.reduce((s, x) => {
+        const vals = keys.map(k => x[k]).filter(Boolean);
+        return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
+      }, 0);
+      skor = (tot / allGrp.length).toFixed(2);
+    }
+    const skorBadge = skor !== '–' ? (parseFloat(skor)>=3.5?'bgg':parseFloat(skor)>=2.5?'bgt':parseFloat(skor)>=1.5?'bgo':'') : '';
+
+    // Instrumen & Tindak Lanjut — editable oleh superadmin
+    const instrAda    = c.instrAda    === '1';
+    const instrTidak  = c.instrAda    === '0';
+    const tindakLanjut = c.tindak || '';
+
     return `<tr>
-      <td>${idx+1}</td><td>${j}</td>
-      <td style="text-align:center">${n}</td>
-      <td style="text-align:center">${pct(cnt.SB)}%</td>
-      <td style="text-align:center">${pct(cnt.B)}%</td>
-      <td style="text-align:center">${pct(cnt.C)}%</td>
-      <td style="text-align:center">${pct(cnt.K)}%</td>
-      <td style="text-align:center">${cnt.SB}</td>
-      <td style="text-align:center">${cnt.B}</td>
-      <td style="text-align:center">${cnt.C}</td>
-      <td style="text-align:center">${cnt.K}</td>
-      <td style="text-align:center"><span class="bdg ${badge}">${skor}</span></td>
+      <td style="text-align:center;font-weight:600">${no}</td>
+      <td style="font-weight:500">${j}${j==='Lulusan'?'<span style="color:var(--g500);font-size:10px"> (*)</span>':''}</td>
+      <td style="text-align:center">
+        <select onchange="window._skCfgSave('${jKey}','instrAda',this.value)"
+          style="font-size:11px;padding:2px 4px;border:1px solid var(--g200);border-radius:4px;width:60px">
+          <option value="">–</option>
+          <option value="1" ${instrAda?'selected':''}>✓ Ada</option>
+          <option value="0" ${instrTidak?'selected':''}>✗ Tidak</option>
+        </select>
+      </td>
+      <td style="text-align:center">
+        <span style="font-size:12px">${instrTidak?'✓':'–'}</span>
+      </td>
+      <td style="text-align:center">
+        <input type="number" min="0" value="${rTS2||''}"
+          style="width:52px;font-size:11px;text-align:center;border:1px solid var(--g200);border-radius:4px;padding:2px"
+          readonly title="Dihitung otomatis dari database (${rTS2} responden tahun ${TAHUN.TS2})">
+      </td>
+      <td style="text-align:center">
+        <input type="number" min="0" value="${rTS1||''}"
+          style="width:52px;font-size:11px;text-align:center;border:1px solid var(--g200);border-radius:4px;padding:2px"
+          readonly title="Dihitung otomatis dari database (${rTS1} responden tahun ${TAHUN.TS1})">
+      </td>
+      <td style="text-align:center">
+        <input type="number" min="0" value="${rTS||''}"
+          style="width:52px;font-size:11px;text-align:center;border:1px solid var(--g200);border-radius:4px;padding:2px"
+          readonly title="Dihitung otomatis dari database (${rTS} responden tahun ${TAHUN.TS})">
+      </td>
+      <td style="text-align:center">
+        <span title="Populasi TS-2: ${popTS2 || 'belum diisi'}">${pct(rTS2, popTS2)}</span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS2||''}" placeholder="Pop."
+          onchange="window._skCfgSave('${jKey}','popTS2',this.value)"
+          style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
+          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS2}">` : ''}
+      </td>
+      <td style="text-align:center">
+        <span>${pct(rTS1, popTS1)}</span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS1||''}" placeholder="Pop."
+          onchange="window._skCfgSave('${jKey}','popTS1',this.value)"
+          style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
+          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS1}">` : ''}
+      </td>
+      <td style="text-align:center">
+        <span>${pct(rTS, popTS)}</span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS||''}" placeholder="Pop."
+          onchange="window._skCfgSave('${jKey}','popTS',this.value)"
+          style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
+          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS}">` : ''}
+      </td>
+      <td style="text-align:center">${cnt.SB||'–'}</td>
+      <td style="text-align:center">${cnt.B||'–'}</td>
+      <td style="text-align:center">${cnt.C||'–'}</td>
+      <td style="text-align:center">${cnt.K||'–'}</td>
+      <td style="text-align:center"><span class="bdg ${skorBadge}">${skor}</span></td>
+      <td>
+        ${isSuperAdmin()?`<textarea onchange="window._skCfgSave('${jKey}','tindak',this.value)"
+          style="width:100%;font-size:11px;border:1px dashed var(--g300);border-radius:4px;padding:4px;resize:vertical;min-height:48px"
+          placeholder="Isi tindak lanjut...">${tindakLanjut}</textarea>` :
+          `<span style="font-size:11px;color:var(--g600)">${tindakLanjut||'–'}</span>`}
+      </td>
     </tr>`;
   }).join('');
 
-  return `<table class="dt">
-    <thead>
-      <tr>
-        <th rowspan="2">No</th>
-        <th rowspan="2">Stakeholder</th>
-        <th rowspan="2">Responden</th>
-        <th colspan="4">Persentase Keterwakilan</th>
-        <th colspan="4">Jumlah Responden (SB=4, B=3, C=2, K=1)</th>
-        <th rowspan="2">Skor</th>
-      </tr>
-      <tr>
-        <th>SB</th><th>B</th><th>C</th><th>K</th>
-        <th>SB</th><th>B</th><th>C</th><th>K</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+  const keterangan = `<p style="font-size:11px;color:var(--g500);margin-top:10px;font-style:italic">
+    <strong>Keterangan:</strong> Skala penilaian responden: SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, K (Kurang) = 1.
+    Skor akhir dikonversi ke skala 1–4 sesuai panduan LAM PTIP IAPS 1.0.<br>
+    ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis di browser.</span>':''}
+  </p>`;
+
+  return `<div class="tw" style="overflow-x:auto">
+    <table class="dt" style="min-width:900px;font-size:12px">
+      ${headerRow}
+      <tbody>${rows}</tbody>
+    </table>
+    ${keterangan}
+  </div>`;
 }
+
+// Save config ke localStorage
+window._skCfgSave = function(jKey, field, value) {
+  const cfg = getSkConfig();
+  if (!cfg[jKey]) cfg[jKey] = {};
+  cfg[jKey][field] = value;
+  saveSkConfig(cfg);
+  // Update kolom Tidak Ada secara sinkron
+  if (field === 'instrAda') {
+    // re-render akan dilakukan saat tab dibuka ulang
+  }
+};
 
 async function renderTableStakeholder() {
   const { sk } = await getData();
@@ -391,8 +514,12 @@ async function renderTableStakeholder() {
   if (!el) return;
 
   el.innerHTML = sk.length
-    ? sk.map(s => `<tr>
+    ? sk.map(s => {
+        const th = s.tahun_survei;
+        const tsLabel = th === TAHUN_SURVEI.TS ? `TS (${th})` : th === TAHUN_SURVEI.TS_1 ? `TS-1 (${th})` : th === TAHUN_SURVEI.TS_2 ? `TS-2 (${th})` : th||'–';
+        return `<tr>
         <td><span class="bdg bgt">${s.jenis||'–'}</span></td>
+        <td><span class="bdg ${th===TAHUN_SURVEI.TS?'bgg':th===TAHUN_SURVEI.TS_1?'bgt':'bgo'}">${tsLabel}</span></td>
         <td><strong>${s.nama||'–'}</strong></td>
         <td>${s.instansi||'–'}</td>
         <td>${s.email||'–'}</td>
@@ -410,8 +537,9 @@ async function renderTableStakeholder() {
             style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer">
             Hapus
           </button>
-        </td></tr>`).join('')
-    : '<tr><td colspan="14"><div class="empty">Belum ada data stakeholder.</div></td></tr>';
+        </td></tr>`;
+      }).join('')
+    : '<tr><td colspan="15"><div class="empty">Belum ada data stakeholder.</div></td></tr>';
 }
 
 // Patch deleteRow agar support TBL_STAKEHOLDER
