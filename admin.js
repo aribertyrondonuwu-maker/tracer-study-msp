@@ -1,0 +1,543 @@
+// ══════════════════════════════════════════════════════════
+//  admin.js — Dashboard Admin
+//  Superadmin : semua tab (Ringkasan, LAM, Analisis, Data Alumni,
+//               Data Pengguna Lulusan, Kelola Admin)
+//  Admin      : HANYA tab Analisis & Pembahasan
+// ══════════════════════════════════════════════════════════
+
+import { db }       from './db.js';
+import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS,
+         ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
+         TAB_ACCESS, ROLE } from './config.js';
+import { getUser, isSuperAdmin } from './auth.js';
+
+// ── Chart instances (untuk destroy saat re-render)
+const charts = {};
+
+// ════════════════════════════════════════════════════════
+//  TAB NAVIGATION — dengan penegakan role
+// ════════════════════════════════════════════════════════
+export function admTab(tabId) {
+  const user    = getUser();
+  const allowed = TAB_ACCESS[user?.role] || [];
+
+  // Cegah admin biasa membuka tab yang tidak diizinkan
+  if (!allowed.includes(tabId)) {
+    console.warn(`[auth] Role "${user?.role}" tidak boleh akses tab "${tabId}"`);
+    tabId = allowed[0] || 'analisis';
+  }
+
+  // Highlight tab button
+  document.querySelectorAll('.adm-tab').forEach(btn => {
+    btn.classList.toggle('a', btn.dataset.tab === tabId);
+  });
+
+  // Tampilkan panel
+  document.querySelectorAll('.ap').forEach(p => p.classList.remove('a'));
+  const panel = document.getElementById(`ap-${tabId}`);
+  if (panel) panel.classList.add('a');
+
+  // Lazy-load konten per tab
+  switch (tabId) {
+    case 'ov':       return renderOverview();
+    case 'lam':      return renderLAM();
+    case 'analisis': return renderAnalisis();
+    case 'al':       return renderTableAlumni();
+    case 'em':       return renderTableEmployer();
+    case 'usr':      return isSuperAdmin() ? loadAdmins() : null;
+  }
+}
+
+// ── Expose ke HTML
+window._admTab = admTab;
+
+// ════════════════════════════════════════════════════════
+//  DATA FETCHER (shared cache per session)
+// ════════════════════════════════════════════════════════
+let _cache = { al: null, em: null, ts: null };
+
+async function getData() {
+  if (_cache.al && _cache.em) return _cache;
+
+  const [{ data: al }, { data: em }] = await Promise.all([
+    db.from(TBL_ALUMNI).select('*').order('created_at', { ascending: false }),
+    db.from(TBL_EMPLOYER).select('*').order('created_at', { ascending: false }),
+  ]);
+
+  _cache = { al: al || [], em: em || [], ts: Date.now() };
+  return _cache;
+}
+
+export function clearCache() { _cache = { al: null, em: null, ts: null }; }
+
+// ════════════════════════════════════════════════════════
+//  RINGKASAN (Superadmin only)
+// ════════════════════════════════════════════════════════
+async function renderOverview() {
+  const { al, em } = await getData();
+
+  const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
+  const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
+  const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
+  const pctRelevan = bekerja ? Math.round(relevan / bekerja * 100) : 0;
+  const avg7       = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const avgProdi   = avgRtg(al, ['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
+
+  document.getElementById('sgrid').innerHTML = `
+    <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${al.length}</div></div>
+    <div class="sc"><div class="sl">Respons Instansi</div><div class="sv">${em.length}</div></div>
+    <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
+    <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
+    <div class="sc"><div class="sl">Rata-rata 7 Aspek LAM</div><div class="sv">${avg7}<span class="su">/5</span></div></div>
+    <div class="sc"><div class="sl">Rata-rata Penilaian Prodi</div><div class="sv">${avgProdi}<span class="su">/5</span></div></div>`;
+
+  if (al.length) {
+    mkChart('ch-status', 'doughnut', countBy(al,'status'));
+    const bidangMap = countBy(al,'bidang');
+    const bKeys     = Object.keys(bidangMap).map(k => k.split('(')[0].trim().substring(0,22));
+    mkChart('ch-bidang', 'bar', Object.fromEntries(bKeys.map((k,i) => [k, Object.values(bidangMap)[i]])));
+    mkChart('ch-tunggu', 'doughnut', countBy(al,'tunggu'));
+    mkChart('ch-sesuai', 'doughnut', countBy(al,'kesesuaian'));
+    // Horizontal bar — penilaian prodi
+    const ks  = ASPEK_PRODI.map(r => r.id.replace('ar','rtg_ar'));
+    const rav = ks.map(k => avgOf(al, k));
+    mkHBar('ch-rtg', ASPEK_PRODI.map(r => r.lbl.substring(0,32)), rav, '#006D77');
+  }
+  if (em.length) {
+    mkChart('ch-puas', 'doughnut', countBy(em,'kepuasan'));
+    const eks = ASPEK_LAM.map(r => r.id.replace('er','rtg_er'));
+    const e7v = eks.map(k => avgOf(em, k));
+    mkHBar('ch-7asp', ASPEK_LAM.map(r => r.lbl.substring(0,32)), e7v, '#003D5B');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  LAPORAN LAM PTIP (Superadmin only)
+// ════════════════════════════════════════════════════════
+async function renderLAM() {
+  const { al, em } = await getData();
+  const div        = document.getElementById('lam-report');
+  if (!al.length && !em.length) { div.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
+
+  // Tabel 2.7B
+  const t27b = ASPEK_LAM.map((r, i) => {
+    const k   = `rtg_er${i+1}`;
+    const vs  = em.map(e => e[k]).filter(Boolean);
+    const avg = vs.length ? (vs.reduce((a,b) => a+b,0)/vs.length).toFixed(2) : '-';
+    const cnt = { 4:0, 3:0, 2:0, 1:0 };
+    vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
+    return `<tr><td>${i+1}</td><td>${r.lbl}</td>
+      <td>${cnt[4]}</td><td>${cnt[3]}</td><td>${cnt[2]}</td><td>${cnt[1]}</td>
+      <td><strong>${avg}</strong></td></tr>`;
+  }).join('');
+
+  // Tabel 2.8B1 — Waktu Tunggu
+  const tungguCat = {
+    'lt6' : al.filter(a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('Kurang dari 6'))).length,
+    '6_18': al.filter(a => a.tunggu && (a.tunggu.includes('6') && !a.tunggu.includes('< 6') || a.tunggu.includes('6 –'))).length,
+    'gt18': al.filter(a => a.tunggu && a.tunggu.includes('> 18')).length,
+  };
+  const totalT = tungguCat.lt6 + tungguCat['6_18'] + tungguCat.gt18 || 1;
+  const pctLt6 = Math.round(tungguCat.lt6 / totalT * 100);
+
+  // Tabel 2.8B2 — Tempat Kerja
+  const levelCat = {
+    lokal       : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal')).length,
+    nasional    : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional')).length,
+    multinasional: al.filter(a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length,
+  };
+
+  div.innerHTML = `
+  <div class="info-box lam" style="margin-bottom:20px">
+    <strong>📊 Tabel 2.7B — Kepuasan Pengguna Lulusan (${em.length} responden)</strong>
+    Sesuai IAPS 1.0 LAM PTIP — 7 Aspek Penilaian Kompetensi
+  </div>
+  <div class="tw" style="margin-bottom:24px">
+    <table class="dt">
+      <thead><tr><th>No</th><th>Aspek Kompetensi</th><th>Sangat Baik (4)</th><th>Baik (3)</th><th>Cukup (2)</th><th>Kurang (1)</th><th>Rata-rata</th></tr></thead>
+      <tbody>${t27b}</tbody>
+    </table>
+  </div>
+
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>📊 Tabel 2.8B1 — Waktu Tunggu Lulusan (${al.length} responden)</strong>
+  </div>
+  <div class="tw" style="margin-bottom:24px">
+    <table class="dt">
+      <thead><tr><th>Kategori Waktu Tunggu</th><th>Jumlah Lulusan</th><th>Persentase</th></tr></thead>
+      <tbody>
+        <tr><td>WT &lt; 6 bulan</td><td>${tungguCat.lt6}</td><td>${Math.round(tungguCat.lt6/totalT*100)}%</td></tr>
+        <tr><td>6 ≤ WT ≤ 18 bulan</td><td>${tungguCat['6_18']}</td><td>${Math.round(tungguCat['6_18']/totalT*100)}%</td></tr>
+        <tr><td>WT &gt; 18 bulan</td><td>${tungguCat.gt18}</td><td>${Math.round(tungguCat.gt18/totalT*100)}%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>WT1 (% lulusan dengan WT &lt; 6 bln) = ${pctLt6}%</strong>
+  </div>
+
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>📊 Tabel 2.8B2 — Tempat Kerja / Berwirausaha (${al.length} responden)</strong>
+  </div>
+  <div class="tw">
+    <table class="dt">
+      <thead><tr><th>Tingkat Tempat Kerja</th><th>Jumlah</th><th>Persentase</th></tr></thead>
+      <tbody>
+        <tr><td>Lokal / Wilayah / Wirausaha tidak berizin</td><td>${levelCat.lokal}</td><td>${Math.round(levelCat.lokal/al.length*100||0)}%</td></tr>
+        <tr><td>Nasional / Berbadan Hukum</td><td>${levelCat.nasional}</td><td>${Math.round(levelCat.nasional/al.length*100||0)}%</td></tr>
+        <tr><td>Multinasional / Internasional</td><td>${levelCat.multinasional}</td><td>${Math.round(levelCat.multinasional/al.length*100||0)}%</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  ANALISIS & PEMBAHASAN (Semua role — termasuk Admin)
+// ════════════════════════════════════════════════════════
+async function renderAnalisis() {
+  const { al, em } = await getData();
+
+  // Cover laporan
+  document.getElementById('cover-date').textContent =
+    'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+
+  // Profil Responden
+  const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
+  const pctKerja   = al.length ? Math.round(bekerja/al.length*100) : 0;
+  document.getElementById('sec-profil').innerHTML = `
+    <div class="sg" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      <div class="sc"><div class="sl">Total Alumni</div><div class="sv">${al.length}</div></div>
+      <div class="sc"><div class="sl">Total Instansi</div><div class="sv">${em.length}</div></div>
+      <div class="sc"><div class="sl">% Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
+    </div>`;
+
+  renderLAM27B(em);
+  renderLAM28B1(al);
+  renderLAM28B2(al);
+  renderRTL(al, em);
+}
+
+function renderLAM27B(em) {
+  const el = document.getElementById('sec-27b');
+  if (!em.length) { el.innerHTML = '<div class="empty">Belum ada data pengguna lulusan.</div>'; return; }
+  const rows = ASPEK_LAM.map((r,i) => {
+    const k  = `rtg_er${i+1}`;
+    const vs = em.map(e=>e[k]).filter(Boolean);
+    const avg= vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
+    return `<tr><td>${i+1}</td><td>${r.lbl}</td><td>${avg}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="tw"><table class="dt">
+    <thead><tr><th>No</th><th>Aspek Kompetensi</th><th>Rata-rata</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+function renderLAM28B1(al) {
+  const el = document.getElementById('sec-28b1');
+  if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
+  const lt6  = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const mid  = al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length;
+  const gt18 = al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length;
+  const tot  = lt6+mid+gt18||1;
+  el.innerHTML = `<div class="tw"><table class="dt">
+    <thead><tr><th>Kategori</th><th>Jumlah</th><th>%</th></tr></thead>
+    <tbody>
+      <tr><td>WT &lt; 6 bulan</td><td>${lt6}</td><td>${Math.round(lt6/tot*100)}%</td></tr>
+      <tr><td>6 ≤ WT ≤ 18 bulan</td><td>${mid}</td><td>${Math.round(mid/tot*100)}%</td></tr>
+      <tr><td>WT &gt; 18 bulan</td><td>${gt18}</td><td>${Math.round(gt18/tot*100)}%</td></tr>
+    </tbody></table></div>`;
+}
+
+function renderLAM28B2(al) {
+  const el  = document.getElementById('sec-28b2');
+  if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
+  const lok = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length;
+  const nas = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length;
+  const mul = al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length;
+  const tot = al.length||1;
+  el.innerHTML = `<div class="tw"><table class="dt">
+    <thead><tr><th>Tingkat</th><th>Jumlah</th><th>%</th></tr></thead>
+    <tbody>
+      <tr><td>Lokal/Wilayah/Wirausaha</td><td>${lok}</td><td>${Math.round(lok/tot*100)}%</td></tr>
+      <tr><td>Nasional/Berbadan Hukum</td><td>${nas}</td><td>${Math.round(nas/tot*100)}%</td></tr>
+      <tr><td>Multinasional/Internasional</td><td>${mul}</td><td>${Math.round(mul/tot*100)}%</td></tr>
+    </tbody></table></div>`;
+}
+
+function renderRTL(al, em) {
+  const avg7    = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const lt6Pct  = al.length ? Math.round(al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length/al.length*100) : 0;
+  document.getElementById('tb-rtl').innerHTML = `
+    <tr><td>1</td><td>Kepuasan Pengguna Lulusan</td><td>Rata-rata 7 aspek: ${avg7}/5</td>
+        <td>Peningkatan kompetensi bahasa asing & TIK melalui kurikulum</td><td>1 tahun</td><td>Kaprodi</td></tr>
+    <tr><td>2</td><td>Waktu Tunggu Kerja</td><td>WT &lt; 6 bln: ${lt6Pct}% alumni</td>
+        <td>Perkuat program magang & career fair dengan instansi mitra</td><td>6 bulan</td><td>Kaprodi</td></tr>
+    <tr><td>3</td><td>Kesesuaian Bidang Kerja</td><td>Data dari ${al.length} responden</td>
+        <td>Penguatan link & match kurikulum dengan kebutuhan industri</td><td>1 tahun</td><td>Kaprodi</td></tr>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  DATA TABEL (Superadmin only)
+// ════════════════════════════════════════════════════════
+async function renderTableAlumni() {
+  const { al } = await getData();
+  document.getElementById('tb-al').innerHTML = al.length
+    ? al.map(a => `<tr>
+        <td><strong>${a.nama}</strong></td><td>${a.nim}</td><td>${a.lulus||'–'}</td>
+        <td>${a.email}</td><td><span class="bdg bgt">${a.status||'–'}</span></td>
+        <td>${a.instansi||'–'}</td><td>${(a.bidang||'–').split('(')[0].trim()}</td>
+        <td>${a.level_kerja||'–'}</td><td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
+        <td><span class="bdg bgo">${a.kesesuaian||'–'}</span></td>
+        <td>${a.gaji||'–'}</td><td>${a.rekomendasi||'–'}</td>
+        <td style="font-size:10.5px;white-space:nowrap">${new Date(a.created_at).toLocaleString('id-ID')}</td>
+        <td class="delete-only-superadmin">
+          <button onclick="window._deleteRow('${TBL_ALUMNI}','${a.id}')"
+            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+            Hapus
+          </button>
+        </td></tr>`).join('')
+    : '<tr><td colspan="14"><div class="empty">Belum ada data alumni.</div></td></tr>';
+}
+
+async function renderTableEmployer() {
+  const { em } = await getData();
+  document.getElementById('tb-em').innerHTML = em.length
+    ? em.map(e => `<tr>
+        <td><strong>${e.instansi}</strong></td><td>${e.sektor}</td>
+        <td>${e.kota}</td><td>${e.pengisi}</td><td>${e.email}</td>
+        <td>${e.alumni_nama||'–'}</td>
+        <td><span class="bdg bgg">${e.kepuasan||'–'}</span></td>
+        <td>${e.rekrut||'–'}</td>
+        <td style="font-size:10.5px;white-space:nowrap">${new Date(e.created_at).toLocaleString('id-ID')}</td>
+        <td class="delete-only-superadmin">
+          <button onclick="window._deleteRow('${TBL_EMPLOYER}','${e.id}')"
+            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+            Hapus
+          </button>
+        </td></tr>`).join('')
+    : '<tr><td colspan="10"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
+}
+
+// ── Hapus baris (superadmin only)
+window._deleteRow = async function(table, id) {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat menghapus data.');
+  if (!confirm('Yakin hapus data ini?')) return;
+  await db.from(table).delete().eq('id', id);
+  clearCache();
+  table === TBL_ALUMNI ? renderTableAlumni() : renderTableEmployer();
+};
+
+// ════════════════════════════════════════════════════════
+//  KELOLA ADMIN (Superadmin only)
+// ════════════════════════════════════════════════════════
+export async function loadAdmins() {
+  if (!isSuperAdmin()) return;
+  const { data, error } = await db.from(TBL_ADMINS).select('*').order('created_at');
+  if (error) {
+    document.getElementById('tb-admins').innerHTML =
+      `<tr><td colspan="6">Error: ${error.message}</td></tr>`;
+    return;
+  }
+  document.getElementById('tb-admins').innerHTML = (data||[]).map(u => `<tr>
+    <td><strong>${u.username}</strong></td>
+    <td>${u.full_name||'–'}</td>
+    <td><span class="bdg ${u.role===ROLE.SUPERADMIN?'bgb':'bgt'}">${u.role}</span></td>
+    <td><span class="bdg ${u.is_active?'bgg':''}">${u.is_active?'Aktif':'Nonaktif'}</span></td>
+    <td style="font-size:10.5px">${new Date(u.created_at).toLocaleDateString('id-ID')}</td>
+    <td>${u.role!==ROLE.SUPERADMIN?`
+      <button onclick="window._toggleAdmin(${u.id},${u.is_active})"
+        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--g200);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">
+        ${u.is_active?'Nonaktifkan':'Aktifkan'}
+      </button>
+      <button onclick="window._deleteAdmin(${u.id})"
+        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:4px">
+        Hapus
+      </button>`:'–'}
+    </td></tr>`).join('');
+}
+
+export async function addAdmin() {
+  if (!isSuperAdmin()) return;
+  const username = document.getElementById('new-username').value.trim();
+  const password = document.getElementById('new-password').value.trim();
+  const nama     = document.getElementById('new-nama').value.trim();
+  const role     = document.getElementById('new-role').value;
+  const errBox   = document.getElementById('add-admin-err');
+  errBox.style.display = 'none';
+
+  if (!username||!password) {
+    errBox.textContent='Username dan password wajib diisi.';
+    errBox.style.display='block'; return;
+  }
+  const { error } = await db.from(TBL_ADMINS)
+    .insert({ username, password, full_name:nama, role, is_active:true });
+  if (error) {
+    errBox.textContent='Gagal: '+error.message;
+    errBox.style.display='block'; return;
+  }
+  ['new-username','new-password','new-nama'].forEach(id=>document.getElementById(id).value='');
+  loadAdmins();
+}
+
+window._toggleAdmin = async (id, isActive) => {
+  if (!isSuperAdmin()) return;
+  await db.from(TBL_ADMINS).update({ is_active:!isActive }).eq('id',id);
+  loadAdmins();
+};
+window._deleteAdmin = async (id) => {
+  if (!isSuperAdmin()) return;
+  if (!confirm('Yakin hapus akun admin ini?')) return;
+  await db.from(TBL_ADMINS).delete().eq('id',id);
+  loadAdmins();
+};
+
+// ── Expose ke HTML
+window._addAdmin = addAdmin;
+
+// ════════════════════════════════════════════════════════
+//  GENERATE NARASI AI
+// ════════════════════════════════════════════════════════
+export async function generateAINarasi() {
+  const { al, em } = await getData();
+  const btn  = document.getElementById('btn-ai');
+  const txt  = document.getElementById('btn-ai-txt');
+  const load = document.getElementById('narasi-loading');
+  const cont = document.getElementById('narasi-content');
+
+  btn.disabled = true; txt.textContent = 'Menganalisis...';
+  load.style.display = 'block'; cont.innerHTML = '';
+
+  const bekerja    = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
+  const pctKerja   = al.length?Math.round(bekerja/al.length*100):0;
+  const avg7       = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const avgProdi   = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
+  const lt6        = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const pctLt6     = al.length?Math.round(lt6/al.length*100):0;
+
+  const prompt = `Anda adalah analis akademik untuk akreditasi LAM PTIP (laman: lamptip.or.id). 
+Buatlah narasi pembahasan hasil tracer study Program Studi Manajemen Sumberdaya Perairan (MSP) FPIK UNSRAT 
+dalam bahasa Indonesia yang formal dan akademis (±500 kata).
+
+DATA TRACER STUDY:
+- Total responden alumni: ${al.length}
+- Total responden pengguna lulusan: ${em.length}
+- Persentase lulusan yang bekerja: ${pctKerja}%
+- Persentase lulusan dengan waktu tunggu <6 bulan: ${pctLt6}%
+- Rata-rata kepuasan pengguna lulusan (7 aspek LAM PTIP Tabel 2.7B): ${avg7}/5
+- Rata-rata penilaian prodi oleh alumni: ${avgProdi}/5
+- 3 bidang kerja terbanyak: ${Object.entries(countBy(al,'bidang')).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join(', ')}
+- Kepuasan pengguna lulusan: ${JSON.stringify(countBy(em,'kepuasan'))}
+
+Struktur narasi:
+1. Pendahuluan singkat
+2. Profil dan penyerapan lulusan (Tabel 2.8B1 & 2.8B2)
+3. Kepuasan pengguna lulusan (Tabel 2.7B)
+4. Penilaian alumni terhadap program studi
+5. Kesimpulan dan rekomendasi tindak lanjut`;
+
+  try {
+    const res  = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1200,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Gagal mendapatkan respons AI.';
+    cont.innerHTML = text.split('\n\n').map(p => `<p style="margin-bottom:12px">${p}</p>`).join('');
+  } catch(e) {
+    cont.innerHTML = `<p style="color:var(--red)">Gagal terhubung ke API AI: ${e.message}</p>`;
+  } finally {
+    load.style.display = 'none';
+    btn.disabled = false; txt.textContent = 'Generate Narasi AI';
+  }
+}
+window._generateAI = generateAINarasi;
+
+// ════════════════════════════════════════════════════════
+//  EXPORT
+// ════════════════════════════════════════════════════════
+export async function exportCSV(type) {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat mengekspor data.');
+  const { al, em } = await getData();
+  const data = type==='alumni' ? al : em;
+  if (!data.length) return alert('Belum ada data untuk diekspor.');
+  const headers = Object.keys(data[0]);
+  const rows    = data.map(d=>headers.map(h=>`"${String(d[h]||'').replace(/"/g,'""')}"`));
+  const csv     = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  const a       = document.createElement('a');
+  a.href        = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download    = `tracer_msp_fpik_unsrat_${type}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+export function printLaporan() { window.print(); }
+
+export async function exportExcel() {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin yang dapat mengekspor data.');
+  admTab('analisis');
+  setTimeout(() => {
+    const area = document.getElementById('print-area');
+    if (!area) return alert('Data belum dimuat. Buka tab Analisis terlebih dahulu.');
+    const csvContent = area.innerText;
+    const blob = new Blob(['\uFEFF'+csvContent],{type:'text/csv;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href=url; a.download=`Laporan_TracerStudy_MSP_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }, 400);
+}
+
+// ── Expose ke HTML
+window._exportCSV   = exportCSV;
+window._printLaporan= printLaporan;
+window._exportExcel = exportExcel;
+
+// ════════════════════════════════════════════════════════
+//  CHART HELPERS
+// ════════════════════════════════════════════════════════
+function dChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function mkChart(id, type, dataMap) {
+  dChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  const labels = Object.keys(dataMap);
+  const data   = Object.values(dataMap);
+  charts[id] = new Chart(ctx, {
+    type,
+    data:{labels,datasets:[{data,backgroundColor:CHART_COLORS,borderWidth:0,borderRadius:type==='bar'?4:0}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:type==='bar'?'top':'right',labels:{font:{size:10,family:'DM Sans'},padding:8,boxWidth:10}}},
+      scales:type==='bar'?{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9}}}}:undefined}
+  });
+}
+
+function mkHBar(id, labels, data, color) {
+  dChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Rata-rata',data,backgroundColor:color,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{min:0,max:5,ticks:{stepSize:1}},y:{ticks:{font:{size:9,family:'DM Sans'}}}}}
+  });
+}
+
+// ── Statistik helpers
+function countBy(arr, key) {
+  const m={};arr.forEach(a=>{const v=a[key]||'N/A';m[v]=(m[v]||0)+1;});return m;
+}
+function avgOf(arr, key) {
+  const vs=arr.map(a=>a[key]).filter(Boolean);
+  return vs.length?+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):0;
+}
+function avgRtg(arr, keys) {
+  if (!arr||!arr.length) return '–';
+  const tot=arr.reduce((s,r)=>s+keys.reduce((ss,k)=>ss+(r[k]||0),0),0);
+  return (tot/(arr.length*keys.length)).toFixed(2);
+}
