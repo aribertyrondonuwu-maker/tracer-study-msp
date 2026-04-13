@@ -7,9 +7,10 @@ export const SUPABASE_URL  = 'https://oqpdcqpsrnxrvtdodtfj.supabase.co';
 export const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xcGRjcXBzcm54cnZ0ZG9kdGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4Mjg5MjMsImV4cCI6MjA5MTQwNDkyM30.l_1Ru8Kc2lf0AyeI9PCwyvk_Aq1Mpb33qWx0UmmzwlM';
 
 // ── Tabel Supabase
-export const TBL_ALUMNI   = 'ts_alumni';
-export const TBL_EMPLOYER = 'ts_employer';
-export const TBL_ADMINS   = 'ts_admins';
+export const TBL_ALUMNI       = 'ts_alumni';
+export const TBL_EMPLOYER     = 'ts_employer';
+export const TBL_ADMINS       = 'ts_admins';
+export const TBL_STAKEHOLDER  = 'ts_stakeholder';
 
 // ── Role Definitions
 export const ROLE = {
@@ -21,7 +22,7 @@ export const ROLE = {
 //    superadmin → semua tab
 //    admin      → hanya analisis
 export const TAB_ACCESS = {
-  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','usr'],
+  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','sk','usr'],
   [ROLE.ADMIN]      : ['analisis'],
 };
 

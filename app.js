@@ -6,6 +6,7 @@
 import { initFormListeners }          from './form.js';
 import { initAlumni, aGo, aNext, submitAlumni }    from './alumni.js';
 import { initEmployer, eGo, eNext, submitEmployer } from './employer.js';
+import { initStakeholder, sGo, sNext, submitStakeholder } from './stakeholder.js';
 import { admLogin, admLogout, applyRoleUI }         from './auth.js';
 import { admTab, addAdmin, generateAINarasi,
          exportCSV, exportExcel, printLaporan }     from './admin.js';
@@ -34,6 +35,9 @@ export const router = {
     if (role === 'alumni') {
       initAlumni();
       this.go('alumni');
+    } else if (role === 'stakeholder') {
+      initStakeholder();
+      this.go('stakeholder');
     } else {
       initEmployer();
       this.go('employer');

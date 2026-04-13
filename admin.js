@@ -6,10 +6,11 @@
 // ══════════════════════════════════════════════════════════
 
 import { db }       from './db.js';
-import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS,
+import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER,
          ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
          TAB_ACCESS, ROLE } from './config.js';
 import { getUser, isSuperAdmin } from './auth.js';
+import { ASPEK_KEPUASAN } from './stakeholder.js';
 
 // ── Chart instances (untuk destroy saat re-render)
 const charts = {};
@@ -40,6 +41,7 @@ export function admTab(tabId) {
     case 'analisis': return renderAnalisis();
     case 'al':       return renderTableAlumni();
     case 'em':       return renderTableEmployer();
+    case 'sk':       return renderTableStakeholder();
     case 'usr':      return isSuperAdmin() ? loadAdmins() : null;
   }
 }
@@ -49,19 +51,20 @@ window._admTab = admTab;
 // ════════════════════════════════════════════════════════
 //  DATA FETCHER (shared cache per session)
 // ════════════════════════════════════════════════════════
-let _cache = { al: null, em: null, ts: null };
+let _cache = { al: null, em: null, sk: null, ts: null };
 
 async function getData() {
   if (_cache.al && _cache.em) return _cache;
-  const [{ data: al }, { data: em }] = await Promise.all([
+  const [{ data: al }, { data: em }, { data: sk }] = await Promise.all([
     db.from(TBL_ALUMNI).select('*').order('created_at', { ascending: false }),
     db.from(TBL_EMPLOYER).select('*').order('created_at', { ascending: false }),
+    db.from(TBL_STAKEHOLDER).select('*').order('created_at', { ascending: false }),
   ]);
-  _cache = { al: al || [], em: em || [], ts: Date.now() };
+  _cache = { al: al || [], em: em || [], sk: sk || [], ts: Date.now() };
   return _cache;
 }
 
-export function clearCache() { _cache = { al: null, em: null, ts: null }; }
+export function clearCache() { _cache = { al: null, em: null, sk: null, ts: null }; }
 
 // ════════════════════════════════════════════════════════
 //  RINGKASAN (Superadmin only)
@@ -173,6 +176,12 @@ async function renderLAM() {
         <tr><td>Multinasional / Internasional</td><td>${levelCat.multinasional}</td><td>${Math.round(levelCat.multinasional/al.length*100||0)}%</td></tr>
       </tbody>
     </table>
+  </div>
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>📊 Tabel 2.7C — Kepuasan Stakeholder Internal & Eksternal (${_cache.sk?.length||0} responden)</strong>
+  </div>
+  <div class="tw">
+    ${render27CTable(_cache.sk||[])}
   </div>`;
 }
 
@@ -180,7 +189,7 @@ async function renderLAM() {
 //  ANALISIS & PEMBAHASAN
 // ════════════════════════════════════════════════════════
 async function renderAnalisis() {
-  const { al, em } = await getData();
+  const { al, em, sk } = await getData();
   document.getElementById('cover-date').textContent =
     'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
@@ -194,6 +203,7 @@ async function renderAnalisis() {
     </div>`;
 
   renderLAM27B(em);
+  renderLAM27C(sk);
   renderLAM28B1(al);
   renderLAM28B2(al);
   renderRTL(al, em);
@@ -211,6 +221,13 @@ function renderLAM27B(em) {
   el.innerHTML = `<div class="tw"><table class="dt">
     <thead><tr><th>No</th><th>Aspek Kompetensi</th><th>Rata-rata</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
+}
+
+function renderLAM27C(sk) {
+  const el = document.getElementById('sec-27c');
+  if (!el) return;
+  if (!sk || !sk.length) { el.innerHTML = '<div class="empty">Belum ada data kepuasan stakeholder.</div>'; return; }
+  el.innerHTML = `<div class="tw">${render27CTable(sk)}</div>`;
 }
 
 function renderLAM28B1(al) {
@@ -299,12 +316,113 @@ async function renderTableEmployer() {
     : '<tr><td colspan="10"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
 }
 
+// ════════════════════════════════════════════════════════
+//  TABEL 2.7C — KEPUASAN STAKEHOLDER
+// ════════════════════════════════════════════════════════
+function render27CTable(sk) {
+  if (!sk.length) return '<p style="color:var(--g500);font-size:13px;padding:12px">Belum ada data stakeholder.</p>';
+
+  const JENIS = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+
+  const rows = JENIS.map((j, idx) => {
+    const group = sk.filter(x => x.jenis === j);
+    const n     = group.length;
+    if (!n) return `<tr><td>${idx+1}</td><td>${j}</td><td colspan="10" style="text-align:center;color:var(--g500);font-size:11px">–</td></tr>`;
+
+    // Hitung rata-rata per aspek lalu skor keseluruhan
+    const keys  = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+    const avgAll= keys.map(k => {
+      const vs = group.map(x=>x[k]).filter(Boolean);
+      return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : 0;
+    });
+    const skor  = (avgAll.reduce((a,b)=>a+b,0)/avgAll.length).toFixed(2);
+
+    // Hitung SB/B/C/K berdasarkan rata-rata per responden
+    const cnt   = { SB:0, B:0, C:0, K:0 };
+    group.forEach(x => {
+      const vals = keys.map(k=>x[k]).filter(Boolean);
+      if (!vals.length) return;
+      const avg  = vals.reduce((a,b)=>a+b,0)/vals.length;
+      if (avg >= 3.5)      cnt.SB++;
+      else if (avg >= 2.5) cnt.B++;
+      else if (avg >= 1.5) cnt.C++;
+      else                 cnt.K++;
+    });
+
+    const pct   = v => n ? Math.round(v/n*100) : 0;
+    const badge = skor>=3.5?'bgg':skor>=2.5?'bgt':skor>=1.5?'bgo':'';
+    return `<tr>
+      <td>${idx+1}</td><td>${j}</td>
+      <td style="text-align:center">${n}</td>
+      <td style="text-align:center">${pct(cnt.SB)}%</td>
+      <td style="text-align:center">${pct(cnt.B)}%</td>
+      <td style="text-align:center">${pct(cnt.C)}%</td>
+      <td style="text-align:center">${pct(cnt.K)}%</td>
+      <td style="text-align:center">${cnt.SB}</td>
+      <td style="text-align:center">${cnt.B}</td>
+      <td style="text-align:center">${cnt.C}</td>
+      <td style="text-align:center">${cnt.K}</td>
+      <td style="text-align:center"><span class="bdg ${badge}">${skor}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `<table class="dt">
+    <thead>
+      <tr>
+        <th rowspan="2">No</th>
+        <th rowspan="2">Stakeholder</th>
+        <th rowspan="2">Responden</th>
+        <th colspan="4">Persentase Keterwakilan</th>
+        <th colspan="4">Jumlah Responden (SB=4, B=3, C=2, K=1)</th>
+        <th rowspan="2">Skor</th>
+      </tr>
+      <tr>
+        <th>SB</th><th>B</th><th>C</th><th>K</th>
+        <th>SB</th><th>B</th><th>C</th><th>K</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function renderTableStakeholder() {
+  const { sk } = await getData();
+  const el = document.getElementById('tb-sk');
+  if (!el) return;
+
+  el.innerHTML = sk.length
+    ? sk.map(s => `<tr>
+        <td><span class="bdg bgt">${s.jenis||'–'}</span></td>
+        <td><strong>${s.nama||'–'}</strong></td>
+        <td>${s.instansi||'–'}</td>
+        <td>${s.email||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk1||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk2||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk3||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk4||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk5||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk6||'–'}</td>
+        <td style="text-align:center">${s.rtg_sk7||'–'}</td>
+        <td><span class="bdg bgg">${s.kepuasan||'–'}</span></td>
+        <td style="font-size:10.5px;white-space:nowrap">${new Date(s.created_at).toLocaleString('id-ID')}</td>
+        <td class="delete-only-superadmin">
+          <button onclick="window._deleteRow('${TBL_STAKEHOLDER}','${s.id}')"
+            style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer">
+            Hapus
+          </button>
+        </td></tr>`).join('')
+    : '<tr><td colspan="14"><div class="empty">Belum ada data stakeholder.</div></td></tr>';
+}
+
+// Patch deleteRow agar support TBL_STAKEHOLDER
 window._deleteRow = async function(table, id) {
   if (!isSuperAdmin()) return alert('Akses ditolak.');
   if (!confirm('Yakin hapus data ini?')) return;
   await db.from(table).delete().eq('id', id);
   clearCache();
-  table === TBL_ALUMNI ? renderTableAlumni() : renderTableEmployer();
+  if (table === TBL_ALUMNI)       renderTableAlumni();
+  else if (table === TBL_EMPLOYER) renderTableEmployer();
+  else if (table === TBL_STAKEHOLDER) renderTableStakeholder();
 };
 
 // ════════════════════════════════════════════════════════
@@ -430,8 +548,8 @@ window._generateAI = generateAINarasi;
 // ════════════════════════════════════════════════════════
 export async function exportCSV(type) {
   if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
-  const { al, em } = await getData();
-  const data = type==='alumni' ? al : em;
+  const { al, em, sk } = await getData();
+  const data = type==='alumni' ? al : type==='stakeholder' ? sk : em;
   if (!data.length) return alert('Belum ada data untuk diekspor.');
   const headers = Object.keys(data[0]);
   const rows    = data.map(d=>headers.map(h=>`"${String(d[h]||'').replace(/"/g,'""')}"`));

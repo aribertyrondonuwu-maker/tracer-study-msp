@@ -418,6 +418,12 @@ table.dt tr:hover td{background:var(--g50);}
       <p>Ringkasan statistik responden tracer study yang dapat diakses publik tanpa perlu login.</p>
       <button class="rc-btn">Lihat Statistik →</button>
     </div>
+    <div class="rc" onclick="startForm('stakeholder')" style="border:1.5px solid transparent">
+      <div class="rc-ico" style="background:var(--green-bg)">🏛️</div>
+      <h3>Survei Kepuasan Stakeholder</h3>
+      <p>Untuk Mahasiswa, Dosen, Tenaga Kependidikan, dan Mitra. Penilaian layanan Prodi MSP sesuai Tabel 2.7C LAM PTIP.</p>
+      <button class="rc-btn" style="background:var(--green);color:#fff">Isi Survei →</button>
+    </div>
   </div>
 </div>
 
@@ -722,6 +728,75 @@ table.dt tr:hover td{background:var(--g50);}
 </div>
 </div>
 
+<!-- ════ STAKEHOLDER FORM ════ -->
+<div id="screen-stakeholder" class="screen">
+<div class="fw">
+  <div class="step-lbl" id="sk-lbl">Langkah 1 dari 3</div>
+  <div class="prog-out"><div class="prog-in" id="sk-prog" style="width:33%"></div></div>
+
+  <!-- Step 1: Identitas -->
+  <div id="sk-s1" class="fc">
+    <h2 class="sec-t">Identitas Responden</h2>
+    <p class="sec-s">Survei kepuasan layanan Prodi MSP FPIK UNSRAT — Tabel 2.7C LAM PTIP IAPS 1.0.</p>
+    <div class="info-box lam"><strong>📌 Untuk Akreditasi LAM PTIP (Tabel 2.7C):</strong> Data kepuasan Anda digunakan untuk mengukur kualitas layanan program studi dari berbagai pemangku kepentingan.</div>
+    <div class="f"><label>Anda adalah <span class="req">*</span></label>
+      <div class="rg" id="sk-jenis-grp">
+        <label class="ro"><input type="radio" name="sk-jenis" value="Mahasiswa"> Mahasiswa</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Dosen"> Dosen</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Tenaga Kependidikan"> Tenaga Kependidikan</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Mitra"> Mitra / Instansi Mitra</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Lulusan"> Lulusan / Alumni</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Pengguna Lulusan"> Pengguna Lulusan</label>
+        <label class="ro"><input type="radio" name="sk-jenis" value="Lainnya"> Lainnya</label>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>Nama Lengkap <span class="req">*</span></label><input id="sk-nama" type="text" placeholder="Nama Anda"></div>
+      <div class="f"><label>Instansi / Unit <span class="req">*</span></label><input id="sk-instansi" type="text" placeholder="Nama instansi, unit, atau program studi"></div>
+    </div>
+    <div class="f"><label>Email (opsional)</label><input id="sk-email" type="email" placeholder="email@domain.com"></div>
+    <div class="fnav"><button class="btn-n" onclick="_sNext(1)">Lanjut →</button></div>
+  </div>
+
+  <!-- Step 2: Penilaian Aspek -->
+  <div id="sk-s2" class="fc" style="display:none">
+    <h2 class="sec-t">Penilaian Aspek Layanan Prodi</h2>
+    <p class="sec-s">Berikan penilaian terhadap 7 aspek layanan Program Studi MSP FPIK UNSRAT.</p>
+    <div class="info-box lam"><strong>📌 Instruksi:</strong> Skala: <strong>1 = Kurang, 2 = Cukup, 3 = Baik, 4 = Sangat Baik</strong></div>
+    <div id="rtg-stakeholder"></div>
+    <div class="fnav">
+      <button class="btn-p" onclick="_sGo(1)">← Kembali</button>
+      <button class="btn-n" onclick="_sNext(2)">Lanjut →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Kepuasan & Saran -->
+  <div id="sk-s3" class="fc" style="display:none">
+    <h2 class="sec-t">Kepuasan &amp; Saran</h2>
+    <p class="sec-s">Masukan Anda sangat berarti untuk pengembangan Prodi MSP.</p>
+    <div class="f"><label>Tingkat Kepuasan Keseluruhan <span class="req">*</span></label>
+      <div class="rg" id="sk-puas-grp">
+        <label class="ro"><input type="radio" name="sk-puas" value="Sangat Puas"> Sangat Puas</label>
+        <label class="ro"><input type="radio" name="sk-puas" value="Puas"> Puas</label>
+        <label class="ro"><input type="radio" name="sk-puas" value="Cukup Puas"> Cukup Puas</label>
+        <label class="ro"><input type="radio" name="sk-puas" value="Kurang Puas"> Kurang Puas</label>
+      </div>
+    </div>
+    <div class="f"><label>Saran / Masukan untuk Prodi MSP</label>
+      <textarea id="sk-saran" placeholder="Hal-hal yang perlu diperbaiki atau ditingkatkan..."></textarea>
+    </div>
+    <div class="f"><label>Harapan ke Depan</label>
+      <textarea id="sk-harapan" placeholder="Harapan Anda terhadap perkembangan Prodi MSP FPIK UNSRAT..."></textarea>
+    </div>
+    <div id="sk-submit-err" class="info-box err" style="display:none"></div>
+    <div class="fnav">
+      <button class="btn-p" onclick="_sGo(2)">← Kembali</button>
+      <button class="btn-s" id="btn-submit-stakeholder" onclick="_submitStakeholder()">✅ Kirim Survei</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- ════ SUCCESS ════ -->
 <div id="screen-success" class="screen">
   <div class="suc-w">
@@ -778,6 +853,7 @@ table.dt tr:hover td{background:var(--g50);}
       <button class="adm-tab"    data-tab="analisis" onclick="_admTab('analisis')">📈 Analisis &amp; Pembahasan</button>
       <button class="adm-tab"    data-tab="al"       onclick="_admTab('al')">Data Alumni</button>
       <button class="adm-tab"    data-tab="em"       onclick="_admTab('em')">Data Pengguna Lulusan</button>
+      <button class="adm-tab"    data-tab="sk"       onclick="_admTab('sk')">Data Stakeholder 2.7C</button>
       <button class="adm-tab"    data-tab="usr"      onclick="_admTab('usr')">👥 Kelola Admin</button>
     </div>
 
@@ -834,11 +910,15 @@ table.dt tr:hover td{background:var(--g50);}
           <div class="info-box lam" style="margin-bottom:14px"><strong>Instruksi LAM PTIP:</strong> 7 aspek: etika, keahlian bidang ilmu, bahasa asing, TI, komunikasi, kerjasama tim, dan pengembangan diri. Skala: Sangat Baik (4) · Baik (3) · Cukup (2) · Kurang (1).</div>
           <div id="sec-27b"><div class="loading">Memuat...</div></div>
         </div>
-        <div class="cc"><div class="ct">C. Tabel 2.8B1 — Waktu Tunggu Lulusan</div>
+        <div class="cc"><div class="ct">C. Tabel 2.7C — Kepuasan Stakeholder Internal &amp; Eksternal <span style="font-size:11px;font-weight:400;color:var(--g500)">(LAM PTIP IAPS 1.0)</span></div>
+          <div class="info-box lam" style="margin-bottom:14px"><strong>Instruksi LAM PTIP:</strong> Kepuasan mahasiswa, dosen, tenaga kependidikan, mitra, lulusan, pengguna lulusan, dan lainnya. Skala: SB=4, B=3, C=2, K=1.</div>
+          <div id="sec-27c"><div class="loading">Memuat...</div></div>
+        </div>
+        <div class="cc"><div class="ct">D. Tabel 2.8B1 — Waktu Tunggu Lulusan</div>
           <div class="info-box lam" style="margin-bottom:14px"><strong>Instruksi LAM PTIP:</strong> Masa tunggu lulusan mendapatkan pekerjaan pertama. Kategori: WT &lt; 6 bln | 6 ≤ WT ≤ 18 bln | WT &gt; 18 bln.</div>
           <div id="sec-28b1"><div class="loading">Memuat...</div></div>
         </div>
-        <div class="cc"><div class="ct">D. Tabel 2.8B2 — Tempat Kerja / Berwirausaha</div>
+        <div class="cc"><div class="ct">E. Tabel 2.8B2 — Tempat Kerja / Berwirausaha</div>
           <div class="info-box lam" style="margin-bottom:14px"><strong>Instruksi LAM PTIP:</strong> Tingkat tempat kerja: Lokal/Wilayah/Wirausaha tidak berizin | Nasional/Berbadan hukum | Multinasional/Internasional.</div>
           <div id="sec-28b2"><div class="loading">Memuat...</div></div>
         </div>
@@ -879,6 +959,28 @@ table.dt tr:hover td{background:var(--g50);}
       <div class="tw"><table class="dt">
         <thead><tr><th>Instansi</th><th>Sektor</th><th>Kota</th><th>Pengisi</th><th>Email</th><th>Alumni</th><th>Kepuasan</th><th>Rekrut</th><th>Waktu Isi</th><th class="delete-only-superadmin">Aksi</th></tr></thead>
         <tbody id="tb-em"></tbody>
+      </table></div>
+    </div>
+
+    <!-- ── Data Stakeholder 2.7C (superadmin only) ── -->
+    <div id="ap-sk" class="ap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" class="export-only-superadmin">
+        <button class="exp-btn" onclick="_exportCSV('stakeholder')">⬇ CSV Stakeholder</button>
+      </div>
+      <div class="tw"><table class="dt">
+        <thead><tr>
+          <th>Jenis</th><th>Nama</th><th>Instansi</th><th>Email</th>
+          <th title="Kualitas Pengajaran">SK1</th>
+          <th title="Relevansi Kurikulum">SK2</th>
+          <th title="Fasilitas">SK3</th>
+          <th title="Pelayanan Akademik">SK4</th>
+          <th title="Kompetensi SDM">SK5</th>
+          <th title="Suasana Akademik">SK6</th>
+          <th title="Kerjasama">SK7</th>
+          <th>Kepuasan</th><th>Waktu Isi</th>
+          <th class="delete-only-superadmin">Aksi</th>
+        </tr></thead>
+        <tbody id="tb-sk"></tbody>
       </table></div>
     </div>
 
