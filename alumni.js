@@ -6,7 +6,7 @@
 import { db }            from './db.js';
 import { TBL_ALUMNI, ASPEK_PRODI } from './config.js';
 import { vv, rad, chk, getR, buildRatings, requireFields } from './form.js';
-import { router }        from '../app.js';
+import { router }        from './app.js';
 
 const TOTAL_STEPS = 5;
 

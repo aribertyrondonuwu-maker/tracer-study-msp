@@ -6,7 +6,7 @@
 
 import { db }          from './db.js';
 import { TBL_ADMINS, ROLE, TAB_ACCESS } from './config.js';
-import { router }      from '../app.js';
+import { router }      from './app.js';
 
 // ── State login
 let _currentUser = null;

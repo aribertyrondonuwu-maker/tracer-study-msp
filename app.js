@@ -3,14 +3,14 @@
 //  Tracer Study MSP FPIK UNSRAT — LAM PTIP IAPS 1.0
 // ══════════════════════════════════════════════════════════
 
-import { initFormListeners }          from './modules/form.js';
-import { initAlumni, aGo, aNext, submitAlumni }    from './modules/alumni.js';
-import { initEmployer, eGo, eNext, submitEmployer } from './modules/employer.js';
-import { admLogin, admLogout, applyRoleUI }         from './modules/auth.js';
+import { initFormListeners }          from './form.js';
+import { initAlumni, aGo, aNext, submitAlumni }    from './alumni.js';
+import { initEmployer, eGo, eNext, submitEmployer } from './employer.js';
+import { admLogin, admLogout, applyRoleUI }         from './auth.js';
 import { admTab, addAdmin, generateAINarasi,
-         exportCSV, exportExcel, printLaporan }     from './modules/admin.js';
-import { db } from './modules/db.js';
-import { TBL_ALUMNI, TBL_EMPLOYER, ASPEK_LAM, CHART_COLORS } from './modules/config.js';
+         exportCSV, exportExcel, printLaporan }     from './admin.js';
+import { db } from './db.js';
+import { TBL_ALUMNI, TBL_EMPLOYER, ASPEK_LAM, CHART_COLORS } from './config.js';
 
 // ══════════════════════════════════════════════════════════
 //  ROUTER
