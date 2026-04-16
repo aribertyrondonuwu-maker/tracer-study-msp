@@ -18,7 +18,10 @@ export function initEmployer() {
 
 function resetEmployer() {
   document.querySelectorAll('#screen-employer input, #screen-employer select, #screen-employer textarea')
-    .forEach(el => { el.value = ''; el.checked = false; });
+    .forEach(el => {
+      if (el.type !== 'radio' && el.type !== 'checkbox') el.value = '';
+      el.checked = false;
+    });
   document.querySelectorAll('#screen-employer .ro.sel, #screen-employer .rtg-btn.sel')
     .forEach(el => el.classList.remove('sel'));
   eGo(1);

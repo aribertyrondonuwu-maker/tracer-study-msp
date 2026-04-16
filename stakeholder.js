@@ -31,7 +31,10 @@ export function initStakeholder() {
 
 function resetStakeholder() {
   document.querySelectorAll('#screen-stakeholder input, #screen-stakeholder select, #screen-stakeholder textarea')
-    .forEach(el => { el.value = ''; el.checked = false; });
+    .forEach(el => {
+      if (el.type !== 'radio' && el.type !== 'checkbox') el.value = '';
+      el.checked = false;
+    });
   document.querySelectorAll('#screen-stakeholder .ro.sel, #screen-stakeholder .rtg-btn.sel')
     .forEach(el => el.classList.remove('sel'));
   sGo(1);
