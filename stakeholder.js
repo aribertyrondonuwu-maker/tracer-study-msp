@@ -7,7 +7,7 @@
 
 import { db }     from './db.js';
 import { TBL_STAKEHOLDER, TAHUN_OPTIONS } from './config.js';
-import { vv, rad, requireFields } from './form.js';
+import { vv, rad, requireFields, requireRadio, requireSelect, hideInlineError } from './form.js';
 import { router } from './app.js';
 
 const TOTAL_STEPS = 3;
@@ -70,17 +70,47 @@ export function sGo(step) {
 export function sNext(from) {
   switch (from) {
     case 1:
-      if (!rad('sk-jenis')) return alert('Mohon pilih jenis stakeholder Anda.');
-      if (!vv('sk-tahun')) return alert('Mohon pilih tahun survei.');
+      hideInlineError('sk-s1');
+      if (!requireRadio('sk-jenis', 'Jenis Stakeholder')) return;
+      if (!requireSelect('sk-tahun', 'Tahun Survei')) return;
       if (!requireFields(['sk-nama', 'sk-instansi'])) return;
       return sGo(2);
 
     case 2: {
+      hideInlineError('sk-s2');
       const miss = ASPEK_KEPUASAN.find(r => {
         const sel = document.querySelector(`#${r.id} .rtg-btn.sel`);
         return !sel;
       });
-      if (miss) return alert('Mohon lengkapi semua penilaian aspek layanan.');
+      if (miss) {
+        ASPEK_KEPUASAN.forEach(r => {
+          const sel = document.querySelector(`#${r.id} .rtg-btn.sel`);
+          if (!sel) {
+            const grp = document.getElementById(r.id);
+            if (grp) grp.closest('.f')?.classList.add('f-err');
+          }
+        });
+        const stepEl = document.getElementById('sk-s2');
+        if (stepEl) {
+          let errEl = document.getElementById('sk-s2-val-err');
+          if (!errEl) {
+            const fnav = stepEl.querySelector('.fnav');
+            if (fnav) {
+              errEl = document.createElement('div');
+              errEl.id = 'sk-s2-val-err';
+              errEl.className = 'info-box err';
+              errEl.style.marginTop = '16px';
+              fnav.parentElement.insertBefore(errEl, fnav);
+            }
+          }
+          if (errEl) {
+            errEl.innerHTML = '<strong>⚠️ Data belum lengkap</strong><br>Mohon lengkapi semua penilaian aspek layanan.';
+            errEl.style.display = 'block';
+          }
+        }
+        document.querySelector('.f-err')?.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
       return sGo(3);
     }
   }
@@ -94,7 +124,7 @@ function getSkR(id) {
 
 // ── Submit ke Supabase
 export async function submitStakeholder() {
-  if (!rad('sk-puas')) return alert('Mohon pilih tingkat kepuasan keseluruhan.');
+  if (!requireRadio('sk-puas', 'Tingkat Kepuasan Keseluruhan')) return;
 
   const btn    = document.getElementById('btn-submit-stakeholder');
   const errBox = document.getElementById('sk-submit-err');

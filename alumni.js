@@ -5,7 +5,7 @@
 
 import { db }            from './db.js';
 import { TBL_ALUMNI, ASPEK_PRODI } from './config.js';
-import { vv, rad, chk, getR, buildRatings, requireFields } from './form.js';
+import { vv, rad, chk, getR, buildRatings, requireFields, validateStep, requireRadio, hideInlineError } from './form.js';
 import { router }        from './app.js';
 
 const TOTAL_STEPS = 5;
@@ -19,7 +19,10 @@ export function initAlumni() {
 function resetAlumni() {
   // Reset semua input
   document.querySelectorAll('#screen-alumni input, #screen-alumni select, #screen-alumni textarea')
-    .forEach(el => { el.value = ''; el.checked = false; });
+    .forEach(el => {
+      if (el.type !== 'radio' && el.type !== 'checkbox') el.value = '';
+      el.checked = false;
+    });
   document.querySelectorAll('#screen-alumni .ro.sel, #screen-alumni .co.sel, #screen-alumni .rtg-btn.sel')
     .forEach(el => el.classList.remove('sel'));
   aGo(1);
@@ -40,22 +43,59 @@ export function aGo(step) {
 export function aNext(from) {
   switch (from) {
     case 1:
+      hideInlineError('a-s1');
       if (!requireFields(['a-nama','a-nim','a-masuk','a-lulus','a-email','a-gender'])) return;
       return aGo(2);
 
-    case 2:
-      if (!rad('astatus') || !vv('a-tunggu') || !vv('a-bidang') || !vv('a-gaji')) {
-        return alert('Mohon lengkapi semua field wajib (*).');
-      }
+    case 2: {
+      hideInlineError('a-s2');
+      const ok = validateStep([
+        { type:'radio',  name:'astatus', label:'Status Pekerjaan Saat Ini' },
+        { type:'select', id:'a-tunggu',  label:'Waktu Tunggu Mendapat Pekerjaan' },
+        { type:'select', id:'a-bidang',  label:'Bidang / Sektor Pekerjaan' },
+        { type:'select', id:'a-gaji',    label:'Kisaran Gaji / Penghasilan' },
+      ]);
+      if (!ok) return;
       return aGo(3);
+    }
 
     case 3:
-      if (!rad('asesuai')) return alert('Mohon pilih tingkat kesesuaian pekerjaan.');
+      hideInlineError('a-s3');
+      if (!requireRadio('asesuai', 'Tingkat Kesesuaian Pekerjaan')) return;
       return aGo(4);
 
     case 4: {
+      hideInlineError('a-s4');
       const miss = ASPEK_PRODI.find(r => getR(r.id) === null);
-      if (miss) return alert('Mohon lengkapi semua penilaian program studi.');
+      if (miss) {
+        // Highlight rating group yang belum diisi
+        ASPEK_PRODI.forEach(r => {
+          if (getR(r.id) === null) {
+            const grp = document.getElementById(r.id);
+            if (grp) grp.closest('.f')?.classList.add('f-err');
+          }
+        });
+        const stepEl = document.getElementById('a-s4');
+        if (stepEl) {
+          let errEl = document.getElementById('a-s4-val-err');
+          if (!errEl) {
+            const fnav = stepEl.querySelector('.fnav');
+            if (fnav) {
+              errEl = document.createElement('div');
+              errEl.id = 'a-s4-val-err';
+              errEl.className = 'info-box err';
+              errEl.style.marginTop = '16px';
+              fnav.parentElement.insertBefore(errEl, fnav);
+            }
+          }
+          if (errEl) {
+            errEl.innerHTML = '<strong>⚠️ Data belum lengkap</strong><br>Mohon lengkapi semua penilaian program studi.';
+            errEl.style.display = 'block';
+          }
+        }
+        document.querySelector('.f-err')?.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
       return aGo(5);
     }
   }
@@ -63,7 +103,30 @@ export function aNext(from) {
 
 // ── Submit ke Supabase
 export async function submitAlumni() {
-  if (!rad('arekom')) return alert('Mohon pilih apakah Anda merekomendasikan Prodi MSP.');
+  if (!rad('arekom')) {
+    const stepEl = document.getElementById('a-s5');
+    if (stepEl) {
+      const radio = document.querySelector('input[name="arekom"]');
+      radio?.closest('.f')?.classList.add('f-err');
+      let errEl = document.getElementById('a-s5-val-err');
+      if (!errEl) {
+        const fnav = stepEl.querySelector('.fnav');
+        if (fnav) {
+          errEl = document.createElement('div');
+          errEl.id = 'a-s5-val-err';
+          errEl.className = 'info-box err';
+          errEl.style.marginTop = '16px';
+          fnav.parentElement.insertBefore(errEl, fnav);
+        }
+      }
+      if (errEl) {
+        errEl.innerHTML = '<strong>⚠️ Data belum lengkap</strong><br>Mohon pilih apakah Anda merekomendasikan Prodi MSP.';
+        errEl.style.display = 'block';
+      }
+      document.querySelector('.f-err')?.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+    return;
+  }
 
   const btn    = document.getElementById('btn-submit-alumni');
   const errBox = document.getElementById('a-submit-err');

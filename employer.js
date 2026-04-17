@@ -5,7 +5,7 @@
 
 import { db }            from './db.js';
 import { TBL_EMPLOYER, ASPEK_LAM } from './config.js';
-import { vv, rad, getR, buildRatings, requireFields } from './form.js';
+import { vv, rad, getR, buildRatings, requireFields, requireRadio, hideInlineError } from './form.js';
 import { router }        from './app.js';
 
 const TOTAL_STEPS = 3;
@@ -42,12 +42,41 @@ export function eGo(step) {
 export function eNext(from) {
   switch (from) {
     case 1:
+      hideInlineError('e-s1');
       if (!requireFields(['e-inst','e-sektor','e-kota','e-pengisi','e-jabpengisi','e-email'])) return;
       return eGo(2);
 
     case 2: {
+      hideInlineError('e-s2');
       const miss = ASPEK_LAM.find(r => getR(r.id) === null);
-      if (miss) return alert('Mohon lengkapi semua 7 aspek penilaian kompetensi alumni.');
+      if (miss) {
+        ASPEK_LAM.forEach(r => {
+          if (getR(r.id) === null) {
+            const grp = document.getElementById(r.id);
+            if (grp) grp.closest('.f')?.classList.add('f-err');
+          }
+        });
+        const stepEl = document.getElementById('e-s2');
+        if (stepEl) {
+          let errEl = document.getElementById('e-s2-val-err');
+          if (!errEl) {
+            const fnav = stepEl.querySelector('.fnav');
+            if (fnav) {
+              errEl = document.createElement('div');
+              errEl.id = 'e-s2-val-err';
+              errEl.className = 'info-box err';
+              errEl.style.marginTop = '16px';
+              fnav.parentElement.insertBefore(errEl, fnav);
+            }
+          }
+          if (errEl) {
+            errEl.innerHTML = '<strong>⚠️ Data belum lengkap</strong><br>Mohon lengkapi semua 7 aspek penilaian kompetensi alumni.';
+            errEl.style.display = 'block';
+          }
+        }
+        document.querySelector('.f-err')?.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
       return eGo(3);
     }
   }
@@ -55,7 +84,7 @@ export function eNext(from) {
 
 // ── Submit ke Supabase
 export async function submitEmployer() {
-  if (!rad('epuas')) return alert('Mohon pilih tingkat kepuasan keseluruhan.');
+  if (!requireRadio('epuas', 'Tingkat Kepuasan Keseluruhan')) return;
 
   const btn    = document.getElementById('btn-submit-employer');
   const errBox = document.getElementById('e-submit-err');

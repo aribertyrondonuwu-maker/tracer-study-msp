@@ -286,6 +286,14 @@ body{font-family:'Outfit',sans-serif;background:var(--cream);color:var(--g800);m
 .info-box.err{background:var(--red-bg);border-left:4px solid var(--red);color:var(--red);}
 .info-box.role-info{background:var(--blue-bg);border-left:4px solid var(--blue);color:var(--g700);}
 
+/* ══ VALIDATION ERROR HIGHLIGHT ══ */
+.f-err label{color:var(--red) !important;}
+.f-err input,.f-err select,.f-err textarea{border-color:var(--red) !important;
+  box-shadow:0 0 0 3px rgba(192,57,43,.1) !important;animation:shake .35s ease;}
+.f-err .ro,.f-err .co{border-color:var(--red) !important;}
+.f-err .rtg-grp .rtg-btn{border-color:rgba(192,57,43,.4) !important;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+
 /* ══ SUCCESS ══ */
 .suc-w{max-width:520px;margin:80px auto;padding:0 22px;text-align:center;}
 .suc-ico{width:74px;height:74px;border-radius:50%;background:var(--green-bg);
