@@ -11,7 +11,7 @@ import { admLogin, admLogout, applyRoleUI }         from './auth.js';
 import { admTab, addAdmin, generateAINarasi,
          exportCSV, exportExcel, printLaporan }     from './admin.js';
 import { db } from './db.js';
-import { TBL_ALUMNI, TBL_EMPLOYER, ASPEK_LAM, CHART_COLORS } from './config.js';
+import { TBL_ALUMNI, TBL_EMPLOYER, TBL_STAKEHOLDER, ASPEK_LAM, CHART_COLORS } from './config.js';
 
 // ══════════════════════════════════════════════════════════
 //  ROUTER
@@ -65,12 +65,13 @@ export async function loadStatistik() {
   document.getElementById('stat-loading-state').style.display = 'block';
   document.getElementById('stat-content').style.display = 'none';
 
-  const [{ data: al }, { data: em }] = await Promise.all([
+  const [{ data: al }, { data: em }, { data: sk }] = await Promise.all([
     db.from(TBL_ALUMNI).select('status,tunggu,kesesuaian,bidang,level_kerja'),
     db.from(TBL_EMPLOYER).select('kepuasan,rtg_er1,rtg_er2,rtg_er3,rtg_er4,rtg_er5,rtg_er6,rtg_er7'),
+    db.from(TBL_STAKEHOLDER).select('jenis,kepuasan,rtg_sk1,rtg_sk2,rtg_sk3,rtg_sk4,rtg_sk5,rtg_sk6,rtg_sk7'),
   ]);
 
-  const a = al || [], e = em || [];
+  const a = al || [], e = em || [], s = sk || [];
 
   // Summary cards
   const bekerja = a.filter(x => x.status && !x.status.includes('Belum') && !x.status.includes('Studi')).length;
@@ -87,13 +88,22 @@ export async function loadStatistik() {
     avg7 = (tot / (e.length * keys.length)).toFixed(2);
   }
 
+  // Rata-rata kepuasan stakeholder
+  let avgSk = '–';
+  if (s.length) {
+    const skKeys = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+    const totSk = s.reduce((sum,r) => sum + skKeys.reduce((ss,k) => ss+(r[k]||0), 0), 0);
+    avgSk = (totSk / (s.length * skKeys.length)).toFixed(2);
+  }
+
   document.getElementById('stat-summary-grid').innerHTML = `
     <div class="stat-box teal"><div class="stat-num">${a.length}</div><div class="stat-label">Responden Alumni</div></div>
     <div class="stat-box gold"><div class="stat-num">${e.length}</div><div class="stat-label">Responden Instansi</div></div>
-    <div class="stat-box green"><div class="stat-num">${pctKerja}<span class="stat-unit">%</span></div><div class="stat-label">Alumni Bekerja</div></div>
-    <div class="stat-box teal"><div class="stat-num">${pctLt6}<span class="stat-unit">%</span></div><div class="stat-label">WT &lt; 6 Bulan</div></div>
-    <div class="stat-box purple"><div class="stat-num">${pctRelevan}<span class="stat-unit">%</span></div><div class="stat-label">Kerja Relevan MSP</div></div>
-    <div class="stat-box gold"><div class="stat-num">${avg7}</div><div class="stat-label">Rata-rata 7 Aspek <span class="stat-unit">/ 5</span></div></div>
+    <div class="stat-box green"><div class="stat-num">${s.length}</div><div class="stat-label">Responden Stakeholder</div></div>
+    <div class="stat-box teal"><div class="stat-num">${pctKerja}<span class="stat-unit">%</span></div><div class="stat-label">Alumni Bekerja</div></div>
+    <div class="stat-box purple"><div class="stat-num">${pctLt6}<span class="stat-unit">%</span></div><div class="stat-label">WT &lt; 6 Bulan</div></div>
+    <div class="stat-box gold"><div class="stat-num">${avg7}</div><div class="stat-label">Rata-rata 7 Aspek LAM <span class="stat-unit">/ 4</span></div></div>
+    <div class="stat-box green"><div class="stat-num">${avgSk}</div><div class="stat-label">Kepuasan Stakeholder <span class="stat-unit">/ 4</span></div></div>
   `;
 
   // Helper
@@ -177,6 +187,40 @@ export async function loadStatistik() {
       <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round(x.count/totalLvl*100)}%;background:var(--teal)"></div></div>
       <div class="stat-bar-val">${x.count}</div>
     </div>`).join('') : '<p style="color:var(--g500);font-size:12px">Belum ada data alumni.</p>';
+
+  // Kepuasan Stakeholder — 7 Aspek (Tabel 2.7C)
+  const skAspLabels = ['Pengajaran','Kurikulum','Fasilitas','Pelayanan','SDM','Suasana','Kerjasama'];
+  const skEl = document.getElementById('stat-sk-bars');
+  if (skEl) {
+    skEl.innerHTML = s.length ? skAspLabels.map((lbl, i) => {
+      const k = `rtg_sk${i+1}`;
+      const vals = s.map(x => x[k]).filter(Boolean);
+      const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+      const pct = (avg/4)*100;
+      return `<div class="stat-bar-row">
+        <div class="stat-bar-label">${lbl}</div>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:var(--green)"></div></div>
+        <div class="stat-bar-val">${avg.toFixed(2)}</div>
+      </div>`;
+    }).join('') : '<p style="color:var(--g500);font-size:12px">Belum ada data stakeholder.</p>';
+  }
+
+  // Distribusi jenis stakeholder
+  if (s.length) {
+    const skJenis = {};
+    s.forEach(x => { const v = x.jenis||'N/A'; skJenis[v]=(skJenis[v]||0)+1; });
+    const skCanvas = document.getElementById('sc-sk-jenis');
+    if (skCanvas) {
+      _statCharts.skJenis = new Chart(skCanvas, {
+        type: 'doughnut',
+        data: { labels: Object.keys(skJenis), datasets: [{ data: Object.values(skJenis), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } } } }
+      });
+    }
+  } else {
+    const skCanvas = document.getElementById('sc-sk-jenis');
+    if (skCanvas) skCanvas.closest('.stat-chart-box').innerHTML += '<p style="text-align:center;color:var(--g500);font-size:12px;padding:20px">Belum ada data.</p>';
+  }
 
   document.getElementById('stat-lastupdate').textContent =
     'Terakhir diperbarui: ' + new Date().toLocaleString('id-ID');

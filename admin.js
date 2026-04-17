@@ -70,7 +70,7 @@ export function clearCache() { _cache = { al: null, em: null, sk: null, ts: null
 //  RINGKASAN (Superadmin only)
 // ════════════════════════════════════════════════════════
 async function renderOverview() {
-  const { al, em } = await getData();
+  const { al, em, sk } = await getData();
   const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
   const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
   const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
@@ -78,13 +78,18 @@ async function renderOverview() {
   const avg7       = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
   const avgProdi   = avgRtg(al, ['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
 
+  // Rata-rata kepuasan stakeholder
+  const avgSk = avgRtg(sk, ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7']);
+
   document.getElementById('sgrid').innerHTML = `
     <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${al.length}</div></div>
     <div class="sc"><div class="sl">Respons Instansi</div><div class="sv">${em.length}</div></div>
+    <div class="sc"><div class="sl">Respons Stakeholder</div><div class="sv">${sk.length}</div></div>
     <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
     <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
-    <div class="sc"><div class="sl">Rata-rata 7 Aspek LAM</div><div class="sv">${avg7}<span class="su">/5</span></div></div>
-    <div class="sc"><div class="sl">Rata-rata Penilaian Prodi</div><div class="sv">${avgProdi}<span class="su">/5</span></div></div>`;
+    <div class="sc"><div class="sl">Rata-rata 7 Aspek LAM</div><div class="sv">${avg7}<span class="su">/4</span></div></div>
+    <div class="sc"><div class="sl">Rata-rata Penilaian Prodi</div><div class="sv">${avgProdi}<span class="su">/4</span></div></div>
+    <div class="sc"><div class="sl">Kepuasan Stakeholder</div><div class="sv">${avgSk}<span class="su">/4</span></div></div>`;
 
   if (al.length) {
     mkChart('ch-status', 'doughnut', countBy(al,'status'));
@@ -102,6 +107,14 @@ async function renderOverview() {
     const eks = ASPEK_LAM.map(r => r.id.replace('er','rtg_er'));
     const e7v = eks.map(k => avgOf(em, k));
     mkHBar('ch-7asp', ASPEK_LAM.map(r => r.lbl.substring(0,32)), e7v, '#003D5B');
+  }
+
+  // Stakeholder charts
+  if (sk.length) {
+    mkChart('ch-sk-jenis', 'doughnut', countBy(sk,'jenis'));
+    const skKeys = ASPEK_KEPUASAN.map(r => `rtg_${r.id}`);
+    const skVals = skKeys.map(k => avgOf(sk, k));
+    mkHBar('ch-sk-asp', ASPEK_KEPUASAN.map(r => r.lbl.substring(0,32)), skVals, '#1B7A4A');
   }
 }
 
