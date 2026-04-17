@@ -144,6 +144,38 @@ body{font-family:'Outfit',sans-serif;background:var(--cream);color:var(--g800);m
 .hukum-table tr:hover td{background:var(--g50);}
 .hukum-table td:first-child{font-weight:600;color:var(--navy);white-space:nowrap;width:120px;}
 
+/* ══ PETUNJUK RESPONDEN ══ */
+.petunjuk-section{max-width:940px;margin:0 auto;padding:0 20px 10px;position:relative;z-index:10;}
+.petunjuk-title{text-align:center;margin-bottom:18px;}
+.petunjuk-title h3{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--navy);margin-bottom:4px;}
+.petunjuk-title p{font-size:13px;color:var(--g500);line-height:1.7;}
+.petunjuk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:800px){.petunjuk-grid{grid-template-columns:1fr;}}
+.petunjuk-card{background:#fff;border-radius:var(--r);padding:22px 20px;
+  box-shadow:var(--shadow);border:1px solid var(--border);
+  border-top:4px solid var(--teal);position:relative;overflow:hidden;}
+.petunjuk-card.employer-guide{border-top-color:var(--gold);}
+.petunjuk-card.stakeholder-guide{border-top-color:var(--green);}
+.petunjuk-card .pk-icon{width:44px;height:44px;border-radius:12px;display:flex;
+  align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;}
+.petunjuk-card.alumni-guide .pk-icon{background:var(--teal-lt);}
+.petunjuk-card.employer-guide .pk-icon{background:var(--gold-lt);}
+.petunjuk-card.stakeholder-guide .pk-icon{background:var(--green-bg);}
+.petunjuk-card h4{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--navy);margin-bottom:6px;}
+.petunjuk-card .pk-siapa{font-size:12px;font-weight:600;color:var(--teal-dk);
+  text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.petunjuk-card.employer-guide .pk-siapa{color:var(--gold-dk);}
+.petunjuk-card.stakeholder-guide .pk-siapa{color:var(--green);}
+.petunjuk-card .pk-desc{font-size:12.5px;color:var(--g600);line-height:1.8;margin-bottom:10px;}
+.petunjuk-card .pk-list{margin:0;padding:0 0 0 16px;}
+.petunjuk-card .pk-list li{font-size:12px;color:var(--g600);line-height:1.75;margin-bottom:3px;}
+.petunjuk-card .pk-list li strong{color:var(--g700);}
+.petunjuk-card .pk-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;
+  border-radius:20px;letter-spacing:.3px;margin-top:10px;}
+.petunjuk-card.alumni-guide .pk-tag{background:var(--teal-pale);color:var(--teal-dk);border:1px solid rgba(0,109,119,.2);}
+.petunjuk-card.employer-guide .pk-tag{background:var(--gold-lt);color:var(--gold-dk);border:1px solid rgba(197,151,58,.25);}
+.petunjuk-card.stakeholder-guide .pk-tag{background:var(--green-bg);color:var(--green);border:1px solid rgba(27,122,74,.2);}
+
 /* ══ STATISTIK SCREEN ══ */
 .stat-wrap{max-width:1000px;margin:32px auto;padding:0 20px 60px;}
 .stat-hero{background:linear-gradient(135deg,#1a0533 0%,#3b0764 50%,#7B5EA7 100%);
@@ -390,6 +422,59 @@ table.dt tr:hover td{background:var(--g50);}
           <p>Masukan dari alumni dan pengguna lulusan sangat berharga untuk meningkatkan kualitas lulusan MSP yang kompeten, berkarakter, dan berdaya saing tinggi.</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Petunjuk Responden -->
+  <div class="petunjuk-section">
+    <div class="petunjuk-title">
+      <h3>📌 Petunjuk Pengisian Survei</h3>
+      <p>Silakan pilih formulir yang sesuai dengan kategori Anda sebagai responden.</p>
+    </div>
+    <div class="petunjuk-grid">
+
+      <!-- Alumni -->
+      <div class="petunjuk-card alumni-guide">
+        <div class="pk-icon">🎓</div>
+        <h4>Formulir Alumni</h4>
+        <div class="pk-siapa">Siapa yang mengisi?</div>
+        <div class="pk-desc">Formulir ini diisi oleh <strong>lulusan / alumni</strong> Program Studi S1 Manajemen Sumber Daya Perairan (MSP) FPIK UNSRAT, baik yang sudah bekerja, melanjutkan studi, maupun yang belum bekerja.</div>
+        <ul class="pk-list">
+          <li><strong>Data yang diminta:</strong> Identitas diri, riwayat pekerjaan, waktu tunggu kerja, kesesuaian bidang pekerjaan, dan penilaian kompetensi.</li>
+          <li><strong>Tujuan:</strong> Mengisi data Tabel 2.8B1 (Waktu Tunggu) & Tabel 2.8B2 (Kesesuaian Bidang Kerja) pada LKPS LAM PTIP.</li>
+        </ul>
+        <span class="pk-tag">Tabel 2.8B1 &amp; 2.8B2</span>
+      </div>
+
+      <!-- Pengguna Lulusan -->
+      <div class="petunjuk-card employer-guide">
+        <div class="pk-icon">🏢</div>
+        <h4>Pengguna Lulusan</h4>
+        <div class="pk-siapa">Siapa yang mengisi?</div>
+        <div class="pk-desc">Formulir ini diisi oleh <strong>atasan langsung / pimpinan instansi / HRD</strong> di tempat kerja yang mempekerjakan alumni MSP FPIK UNSRAT. Bukan diisi oleh alumni.</div>
+        <ul class="pk-list">
+          <li><strong>Data yang diminta:</strong> Identitas instansi, nama alumni yang dinilai, dan penilaian terhadap 7 aspek kompetensi lulusan (integritas, profesionalisme, bahasa asing, TI, komunikasi, kerjasama tim, pengembangan diri).</li>
+          <li><strong>Tujuan:</strong> Mengisi data Tabel 2.7B (Kepuasan Pengguna Lulusan) pada LKPS LAM PTIP.</li>
+        </ul>
+        <span class="pk-tag">Tabel 2.7B</span>
+      </div>
+
+      <!-- Stakeholder -->
+      <div class="petunjuk-card stakeholder-guide">
+        <div class="pk-icon">🏛️</div>
+        <h4>Survei Kepuasan Stakeholder</h4>
+        <div class="pk-siapa">Siapa yang mengisi?</div>
+        <div class="pk-desc">Formulir ini diisi oleh <strong>stakeholder internal &amp; eksternal</strong> Prodi MSP, yaitu:</div>
+        <ul class="pk-list">
+          <li><strong>Mahasiswa aktif</strong> — Penilaian layanan akademik & kemahasiswaan.</li>
+          <li><strong>Dosen</strong> — Penilaian layanan manajemen prodi.</li>
+          <li><strong>Tenaga Kependidikan</strong> — Penilaian dukungan operasional.</li>
+          <li><strong>Mitra / Industri</strong> — Penilaian kerjasama & kemitraan.</li>
+          <li><strong>Lulusan / Alumni</strong> — Penilaian layanan prodi secara keseluruhan.</li>
+        </ul>
+        <span class="pk-tag">Tabel 2.7C</span>
+      </div>
+
     </div>
   </div>
 
