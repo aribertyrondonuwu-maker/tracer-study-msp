@@ -132,31 +132,65 @@ export async function submitStakeholder() {
   btn.textContent = '⏳ Mengirim...';
   errBox.style.display = 'none';
 
+  // Validasi tahun_survei — pastikan tidak NaN
+  const tahunRaw = vv('sk-tahun');
+  const tahunInt = parseInt(tahunRaw);
+  if (!tahunRaw || isNaN(tahunInt)) {
+    errBox.innerHTML = '<strong>⚠️ Tahun Survei tidak valid.</strong> Kembali ke langkah 1 dan pilih tahun survei.';
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '✅ Kirim Survei';
+    return;
+  }
+
   const payload = {
-    tahun_survei : parseInt(vv('sk-tahun')),
+    tahun_survei : tahunInt,
     jenis        : rad('sk-jenis'),
     nama         : vv('sk-nama'),
     instansi     : vv('sk-instansi'),
-    email        : vv('sk-email'),
+    email        : vv('sk-email') || null,
     // 7 aspek penilaian
     rtg_sk1 : getSkR('sk1'), rtg_sk2 : getSkR('sk2'), rtg_sk3 : getSkR('sk3'),
     rtg_sk4 : getSkR('sk4'), rtg_sk5 : getSkR('sk5'), rtg_sk6 : getSkR('sk6'),
     rtg_sk7 : getSkR('sk7'),
     kepuasan   : rad('sk-puas'),
-    saran      : vv('sk-saran'),
-    harapan    : vv('sk-harapan'),
+    saran      : vv('sk-saran') || null,
+    harapan    : vv('sk-harapan') || null,
   };
 
-  const { error } = await db.from(TBL_STAKEHOLDER).insert(payload);
+  try {
+    const { error } = await db.from(TBL_STAKEHOLDER).insert(payload);
 
-  if (error) {
-    errBox.innerHTML = `<strong>Gagal mengirim data.</strong> ${error.message}
-      <br><small>Cek koneksi internet atau konfigurasi Supabase.</small>`;
+    if (error) {
+      // Tampilkan pesan error yang lebih informatif
+      let pesanError = error.message || 'Terjadi kesalahan tidak diketahui.';
+
+      // Deteksi unique constraint violation
+      if (pesanError.includes('unique') || pesanError.includes('duplicate') || error.code === '23505') {
+        pesanError = 'Data Anda sudah pernah dikirim sebelumnya (duplikat terdeteksi). '
+          + 'Jika Anda belum pernah mengisi, hubungi admin untuk memeriksa database.';
+      }
+      // Deteksi RLS / permission error
+      if (pesanError.includes('policy') || pesanError.includes('permission') || error.code === '42501') {
+        pesanError = 'Akses ditolak oleh server (RLS policy). Hubungi admin Supabase.';
+      }
+
+      errBox.innerHTML = `<strong>⚠️ Gagal mengirim data.</strong><br>${pesanError}
+        <br><small style="color:var(--g500)">Kode error: ${error.code || '-'} | ${error.details || ''}</small>`;
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      btn.disabled = false;
+      btn.textContent = '✅ Kirim Survei';
+    } else {
+      router.go('success');
+    }
+  } catch (e) {
+    errBox.innerHTML = `<strong>⚠️ Error koneksi.</strong> ${e.message || 'Tidak dapat terhubung ke server.'}
+      <br><small>Periksa koneksi internet Anda dan coba lagi.</small>`;
     errBox.style.display = 'block';
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
     btn.disabled = false;
-    btn.textContent = '✅ Kirim Formulir';
-  } else {
-    router.go('success');
+    btn.textContent = '✅ Kirim Survei';
   }
 }
 
