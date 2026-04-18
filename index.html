@@ -466,7 +466,7 @@ table.dt tr:hover td{background:var(--g50);}
       <!-- Pengguna Lulusan -->
       <div class="petunjuk-card employer-guide">
         <div class="pk-icon">🏢</div>
-        <h4>Pengguna Lulusan</h4>
+        <h4>Pengguna Lulusan <span style="font-size:13px;font-weight:400;color:var(--g500)">(atasan langsung alumni)</span></h4>
         <div class="pk-siapa">Siapa yang mengisi?</div>
         <div class="pk-desc">Formulir ini diisi oleh <strong>atasan langsung / pimpinan instansi / HRD</strong> di tempat kerja yang mempekerjakan alumni MSP FPIK UNSRAT. <strong>Bukan</strong> diisi oleh alumni sendiri.</div>
         <div class="pk-tahun">
@@ -514,8 +514,9 @@ table.dt tr:hover td{background:var(--g50);}
     <div class="rc employer" onclick="startForm('employer')">
       <div class="rc-ico">🏢</div>
       <div class="rc-badge" style="background:var(--gold-lt);color:var(--gold-dk);border-color:rgba(197,151,58,.25)">Tabel 2.7B</div>
-      <h3>Pengguna Lulusan</h3>
-      <p>Untuk instansi / perusahaan yang mempekerjakan alumni MSP. Penilaian 7 aspek kompetensi sesuai LAM PTIP Tabel 2.7B.</p>
+      <h3>Pengguna Lulusan <span style="font-size:13px;font-weight:400;color:var(--g500)">(atasan langsung alumni)</span></h3>
+      <p style="font-size:11.5px;font-weight:600;color:var(--gold-dk);margin-bottom:6px">Instansi / Perusahaan</p>
+      <p>Untuk atasan langsung / pimpinan instansi / HRD yang mempekerjakan alumni MSP. Penilaian 7 aspek kompetensi sesuai LAM PTIP Tabel 2.7B.</p>
       <button class="rc-btn">Isi Formulir Instansi →</button>
     </div>
     <div class="rc stakeholder" onclick="startForm('stakeholder')">
@@ -979,7 +980,7 @@ table.dt tr:hover td{background:var(--g50);}
       <button class="adm-tab"    data-tab="lam"      onclick="_admTab('lam')">Laporan LAM PTIP</button>
       <button class="adm-tab"    data-tab="analisis" onclick="_admTab('analisis')">📈 Analisis &amp; Pembahasan</button>
       <button class="adm-tab"    data-tab="al"       onclick="_admTab('al')">Data Alumni</button>
-      <button class="adm-tab"    data-tab="em"       onclick="_admTab('em')">Data Pengguna Lulusan</button>
+      <button class="adm-tab"    data-tab="em"       onclick="_admTab('em')">Data Pengguna Lulusan <span style="font-size:10px;font-weight:400;opacity:.7">(Atasan Langsung)</span></button>
       <button class="adm-tab"    data-tab="sk"       onclick="_admTab('sk')">Data Stakeholder 2.7C</button>
       <button class="adm-tab"    data-tab="usr"      onclick="_admTab('usr')">👥 Kelola Admin</button>
     </div>
@@ -995,7 +996,7 @@ table.dt tr:hover td{background:var(--g50);}
       </div>
       <div class="cc"><div class="ct">Rata-rata Penilaian Prodi oleh Alumni</div><div style="position:relative;height:260px"><canvas id="ch-rtg"></canvas></div></div>
       <div class="cg2">
-        <div class="cc"><div class="ct">Kepuasan Pengguna Lulusan</div><div style="position:relative;height:210px"><canvas id="ch-puas"></canvas></div></div>
+        <div class="cc"><div class="ct">Kepuasan Pengguna Lulusan (Atasan Langsung)</div><div style="position:relative;height:210px"><canvas id="ch-puas"></canvas></div></div>
         <div class="cc"><div class="ct">7 Aspek Kompetensi (Tabel 2.7B)</div><div style="position:relative;height:260px"><canvas id="ch-7asp"></canvas></div></div>
       </div>
       <div class="cg2">

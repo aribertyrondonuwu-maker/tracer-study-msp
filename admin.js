@@ -83,7 +83,7 @@ async function renderOverview() {
 
   document.getElementById('sgrid').innerHTML = `
     <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${al.length}</div></div>
-    <div class="sc"><div class="sl">Respons Instansi</div><div class="sv">${em.length}</div></div>
+    <div class="sc"><div class="sl">Respons Atasan Langsung Alumni</div><div class="sv">${em.length}</div></div>
     <div class="sc"><div class="sl">Respons Stakeholder</div><div class="sv">${sk.length}</div></div>
     <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
     <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
@@ -875,7 +875,7 @@ export async function exportWord() {
     // Ringkasan
     new Paragraph({ text:'A. Ringkasan Data', heading:HeadingLevel.HEADING_2 }),
     new Paragraph({ children:[new TextRun({text:`• Total Responden Alumni       : ${al.length} orang`,size:22})] }),
-    new Paragraph({ children:[new TextRun({text:`• Total Responden Instansi     : ${em.length} instansi`,size:22})] }),
+    new Paragraph({ children:[new TextRun({text:`• Total Responden Atasan Langsung Alumni : ${em.length} instansi/perusahaan`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Rata-rata 7 Aspek LAM PTIP  : ${avg7} / 5`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Lulusan WT < 6 bulan        : ${pctLt6}%`,size:22})] }),
     new Paragraph(''),

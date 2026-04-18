@@ -98,7 +98,7 @@ export async function loadStatistik() {
 
   document.getElementById('stat-summary-grid').innerHTML = `
     <div class="stat-box teal"><div class="stat-num">${a.length}</div><div class="stat-label">Responden Alumni</div></div>
-    <div class="stat-box gold"><div class="stat-num">${e.length}</div><div class="stat-label">Responden Instansi</div></div>
+    <div class="stat-box gold"><div class="stat-num">${e.length}</div><div class="stat-label">Responden Atasan Langsung Alumni</div></div>
     <div class="stat-box green"><div class="stat-num">${s.length}</div><div class="stat-label">Responden Stakeholder</div></div>
     <div class="stat-box teal"><div class="stat-num">${pctKerja}<span class="stat-unit">%</span></div><div class="stat-label">Alumni Bekerja</div></div>
     <div class="stat-box purple"><div class="stat-num">${pctLt6}<span class="stat-unit">%</span></div><div class="stat-label">WT &lt; 6 Bulan</div></div>
