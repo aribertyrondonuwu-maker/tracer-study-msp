@@ -229,6 +229,75 @@ export async function loadStatistik() {
   document.getElementById('stat-content').style.display = 'block';
 }
 
+
+// ══════════════════════════════════════════════════════════
+//  DAFTAR RESPONDEN PUBLIK
+// ══════════════════════════════════════════════════════════
+export async function loadResponden() {
+  document.getElementById('resp-loading').style.display = 'block';
+  document.getElementById('resp-content').style.display = 'none';
+
+  const [{ data: al }, { data: em }, { data: sk }] = await Promise.all([
+    db.from(TBL_ALUMNI).select('nama,lulus,instansi').order('created_at', { ascending: false }),
+    db.from(TBL_EMPLOYER).select('pengisi,instansi,jab_pengisi').order('created_at', { ascending: false }),
+    db.from(TBL_STAKEHOLDER).select('nama,jenis,instansi').order('created_at', { ascending: false }),
+  ]);
+
+  const a = al || [], e = em || [], s = sk || [];
+  const total = a.length + e.length + s.length;
+
+  // Counters
+  document.getElementById('rc-alumni').textContent     = a.length;
+  document.getElementById('rc-employer').textContent   = e.length;
+  document.getElementById('rc-stakeholder').textContent= s.length;
+  document.getElementById('rc-total').textContent      = total;
+  document.getElementById('resp-al-count').textContent = a.length + ' responden';
+  document.getElementById('resp-em-count').textContent = e.length + ' responden';
+  document.getElementById('resp-sk-count').textContent = s.length + ' responden';
+
+  // Helper: inisial untuk avatar
+  const initials = str => (str || '?').trim().split(' ').slice(0,2).map(w => w[0]?.toUpperCase() || '').join('');
+
+  // Render alumni
+  const alEl = document.getElementById('resp-list-al');
+  alEl.innerHTML = a.length ? a.map(r => `
+    <div class="resp-item">
+      <div class="ri-avatar teal">${initials(r.nama)}</div>
+      <div class="ri-info">
+        <div class="ri-name">${r.nama || '–'}</div>
+        <div class="ri-sub">Lulus ${r.lulus || '–'}${r.instansi ? ' · ' + r.instansi : ''}</div>
+      </div>
+      <span class="ri-tag teal">Alumni</span>
+    </div>`).join('') : '<div class="resp-empty">Belum ada responden alumni.</div>';
+
+  // Render employer
+  const emEl = document.getElementById('resp-list-em');
+  emEl.innerHTML = e.length ? e.map(r => `
+    <div class="resp-item">
+      <div class="ri-avatar gold">${initials(r.pengisi)}</div>
+      <div class="ri-info">
+        <div class="ri-name">${r.pengisi || '–'}</div>
+        <div class="ri-sub">${r.jab_pengisi || ''}${r.instansi ? ' · ' + r.instansi : ''}</div>
+      </div>
+      <span class="ri-tag gold">Instansi</span>
+    </div>`).join('') : '<div class="resp-empty">Belum ada responden instansi.</div>';
+
+  // Render stakeholder
+  const skEl = document.getElementById('resp-list-sk');
+  skEl.innerHTML = s.length ? s.map(r => `
+    <div class="resp-item">
+      <div class="ri-avatar green">${initials(r.nama)}</div>
+      <div class="ri-info">
+        <div class="ri-name">${r.nama || '–'}</div>
+        <div class="ri-sub">${r.jenis || ''}${r.instansi ? ' · ' + r.instansi : ''}</div>
+      </div>
+      <span class="ri-tag green">Stakeholder</span>
+    </div>`).join('') : '<div class="resp-empty">Belum ada responden stakeholder.</div>';
+
+  document.getElementById('resp-loading').style.display = 'none';
+  document.getElementById('resp-content').style.display = 'block';
+}
+
 // ══════════════════════════════════════════════════════════
 //  EXPOSE ke HTML
 // ══════════════════════════════════════════════════════════
@@ -237,6 +306,8 @@ window.startForm   = (r) => router.startForm(r);
 window.showAdmin   = () => router.showAdmin();
 window.showTentang = () => router.go('tentang');
 window.showStatistik = async () => { router.go('statistik'); await loadStatistik(); };
+window.showResponden  = async () => { router.go('responden'); await loadResponden(); };
+window.loadResponden  = loadResponden;
 window.loadStatistik = loadStatistik;
 window.admLogin    = admLogin;
 window.admLogout   = admLogout;
