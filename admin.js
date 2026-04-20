@@ -626,60 +626,127 @@ window._deleteAdmin = async (id) => {
 window._addAdmin = addAdmin;
 
 // ════════════════════════════════════════════════════════
-//  GENERATE NARASI AI
+//  GENERATE NARASI AI — menggunakan Claude API (streaming)
 // ════════════════════════════════════════════════════════
 export async function generateAINarasi() {
-  const { al, em } = await getData();
+  const { al, em, sk } = await getData();
   const btn  = document.getElementById('btn-ai');
   const txt  = document.getElementById('btn-ai-txt');
   const load = document.getElementById('narasi-loading');
   const cont = document.getElementById('narasi-content');
 
-  btn.disabled = true; txt.textContent = 'Menganalisis...';
-  load.style.display = 'block'; cont.innerHTML = '';
+  btn.disabled = true; txt.textContent = '⏳ Menganalisis...';
+  load.style.display = 'block';
+  cont.innerHTML = '<p style="color:var(--g500);font-style:italic">Sedang membuat narasi, harap tunggu...</p>';
 
-  const bekerja  = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
-  const pctKerja = al.length?Math.round(bekerja/al.length*100):0;
-  const avg7     = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
-  const avgProdi = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
-  const lt6      = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
-  const pctLt6   = al.length?Math.round(lt6/al.length*100):0;
+  // Hitung statistik untuk prompt
+  const bekerja    = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
+  const pctKerja   = al.length ? Math.round(bekerja/al.length*100) : 0;
+  const avg7       = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
+  const avgProdi   = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
+  const avgSk      = avgRtg(sk,['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7']);
+  const lt6        = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
+  const pctLt6     = al.length ? Math.round(lt6/al.length*100) : 0;
+  const relevan    = al.filter(a=>['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
+  const pctRelevan = bekerja ? Math.round(relevan/bekerja*100) : 0;
+  const top3bidang = Object.entries(countBy(al,'bidang')).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join(', ');
+  const kepuasanEm = JSON.stringify(countBy(em,'kepuasan'));
+  const jenisSkMap = JSON.stringify(countBy(sk,'jenis'));
 
-  const prompt = `Anda adalah analis akademik untuk akreditasi LAM PTIP.
-Buatlah narasi pembahasan hasil tracer study Program Studi Manajemen Sumber Daya Perairan (MSP) FPIK UNSRAT
-dalam bahasa Indonesia yang formal dan akademis (±500 kata).
+  // Detail 7 aspek LAM (Tabel 2.7B)
+  const detail7Aspek = ASPEK_LAM.map((r,i) => {
+    const k  = `rtg_er${i+1}`;
+    const vs = em.map(e=>e[k]).filter(Boolean);
+    const avg= vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : '-';
+    return `  ${i+1}. ${r.lbl}: ${avg}/4`;
+  }).join('\n');
+
+  // Detail 7 aspek Prodi oleh Alumni
+  const detailProdi = ASPEK_PRODI.map((r,i) => {
+    const k  = `rtg_ar${i+1}`;
+    const vs = al.map(a=>a[k]).filter(Boolean);
+    const avg= vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : '-';
+    return `  ${i+1}. ${r.lbl}: ${avg}/4`;
+  }).join('\n');
+
+  const prompt = `Anda adalah analis akademik untuk akreditasi LAM PTIP IAPS 1.0.
+Buatlah narasi pembahasan hasil tracer study Program Studi Manajemen Sumber Daya Perairan (MSP) Fakultas Perikanan dan Ilmu Kelautan Universitas Sam Ratulangi (FPIK UNSRAT) dalam bahasa Indonesia yang formal dan akademis (±600 kata).
 
 DATA TRACER STUDY:
-- Total responden alumni: ${al.length}
-- Total responden pengguna lulusan: ${em.length}
-- Persentase lulusan yang bekerja: ${pctKerja}%
-- Persentase lulusan dengan waktu tunggu <6 bulan: ${pctLt6}%
-- Rata-rata kepuasan pengguna lulusan (7 aspek LAM PTIP Tabel 2.7B): ${avg7}/5
-- Rata-rata penilaian prodi oleh alumni: ${avgProdi}/5
-- 3 bidang kerja terbanyak: ${Object.entries(countBy(al,'bidang')).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join(', ')}
-- Kepuasan pengguna lulusan: ${JSON.stringify(countBy(em,'kepuasan'))}
+- Total responden alumni: ${al.length} orang
+- Total responden pengguna lulusan (atasan langsung): ${em.length} instansi
+- Total responden stakeholder: ${sk.length} orang (${jenisSkMap})
+- Persentase lulusan yang bekerja/berwirausaha: ${pctKerja}%
+- Persentase kesesuaian bidang kerja (Erat + Sangat Erat): ${pctRelevan}%
+- Persentase lulusan dengan waktu tunggu < 6 bulan: ${pctLt6}%
+- 3 bidang kerja terbanyak: ${top3bidang}
+- Distribusi kepuasan pengguna lulusan: ${kepuasanEm}
 
-Struktur narasi:
-1. Pendahuluan singkat
-2. Profil dan penyerapan lulusan (Tabel 2.8B1 & 2.8B2)
-3. Kepuasan pengguna lulusan (Tabel 2.7B)
+TABEL 2.7B — Rata-rata Kepuasan Pengguna Lulusan (skala 1–4):
+${detail7Aspek}
+Rata-rata keseluruhan 7 aspek: ${avg7}/4
+
+PENILAIAN ALUMNI TERHADAP PRODI (skala 1–4):
+${detailProdi}
+Rata-rata keseluruhan: ${avgProdi}/4
+
+KEPUASAN STAKEHOLDER (Tabel 2.7C): Rata-rata ${avgSk}/4
+
+Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
+1. Pendahuluan — latar belakang tracer study MSP FPIK UNSRAT
+2. Profil penyerapan dan waktu tunggu lulusan (Tabel 2.8B1 & 2.8B2)
+3. Kepuasan pengguna lulusan — analisis 7 aspek LAM PTIP (Tabel 2.7B)
 4. Penilaian alumni terhadap program studi
-5. Kesimpulan dan rekomendasi tindak lanjut`;
+5. Kepuasan stakeholder (Tabel 2.7C)
+6. Kesimpulan dan rekomendasi tindak lanjut untuk peningkatan mutu prodi`;
 
   try {
-    const res  = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1200, messages:[{role:'user',content:prompt}] })
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({
+        model     : 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages  : [{ role: 'user', content: prompt }]
+      })
     });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(()=>({error:{message:res.statusText}}));
+      throw new Error(errData?.error?.message || `HTTP ${res.status}`);
+    }
+
     const data = await res.json();
-    const text = data.content?.[0]?.text || 'Gagal mendapatkan respons AI.';
-    cont.innerHTML = text.split('\n\n').map(p => `<p style="margin-bottom:12px">${p}</p>`).join('');
+    const text = data.content?.find(b => b.type === 'text')?.text
+                 || 'Tidak ada respons dari AI.';
+
+    // Render paragraf dengan format rapi
+    cont.innerHTML = text
+      .split('\n\n')
+      .filter(p => p.trim())
+      .map(p => {
+        // Deteksi heading (angka. atau **teks**)
+        if (/^\*\*(.+)\*\*$/.test(p.trim())) {
+          return `<h4 style="margin:16px 0 6px;color:var(--navy,#003D5B)">${p.trim().replace(/\*\*/g,'')}</h4>`;
+        }
+        if (/^\d+\.\s/.test(p.trim()) && p.length < 100) {
+          return `<h4 style="margin:16px 0 6px;color:var(--navy,#003D5B)">${p.trim()}</h4>`;
+        }
+        return `<p style="margin-bottom:12px;line-height:1.7;text-align:justify">${p.trim().replace(/\n/g,' ')}</p>`;
+      })
+      .join('');
+
   } catch(e) {
-    cont.innerHTML = `<p style="color:var(--red)">Gagal terhubung ke API AI: ${e.message}</p>`;
+    cont.innerHTML = `
+      <div class="info-box err">
+        <strong>⚠️ Gagal generate narasi AI</strong><br>
+        ${e.message}<br>
+        <small style="color:var(--g500)">Pastikan koneksi internet aktif dan coba lagi.</small>
+      </div>`;
   } finally {
     load.style.display = 'none';
-    btn.disabled = false; txt.textContent = 'Generate Narasi AI';
+    btn.disabled = false;
+    txt.textContent = '✨ Generate Narasi AI';
   }
 }
 window._generateAI = generateAINarasi;
