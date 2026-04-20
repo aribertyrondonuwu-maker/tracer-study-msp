@@ -333,7 +333,6 @@ async function renderTableEmployer() {
 //  TABEL 2.7C — KEPUASAN STAKEHOLDER (Format LAM PTIP Lengkap)
 // ════════════════════════════════════════════════════════
 
-// Simpan data populasi & instrumen & tindak lanjut di localStorage-like (db tabel ts_sk_config)
 const SK_CONFIG_KEY = 'sk_27c_config';
 
 function getSkConfig() {
@@ -389,19 +388,16 @@ function render27CTable(sk) {
     const jKey  = j.replace(/\s+/g,'_');
     const c     = cfg[jKey] || {};
 
-    // Responden per tahun dari DB
     const rTS2  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS2).length;
     const rTS1  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS1).length;
     const rTS   = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS).length;
 
-    // Populasi (input manual admin)
     const popTS2 = parseInt(c.popTS2 || 0);
     const popTS1 = parseInt(c.popTS1 || 0);
     const popTS  = parseInt(c.popTS  || 0);
 
     const pct = (r, p) => (p > 0 ? Math.round(r / p * 100) + '%' : '–');
 
-    // SB/B/C/KB hanya dari TS (tahun terbaru) — sesuai format LAM PTIP kolom 11-14
     const grpTS = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS);
     const keys  = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
     const cnt   = { SB:0, B:0, C:0, K:0 };
@@ -413,7 +409,6 @@ function render27CTable(sk) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    // Skor rata-rata dari semua tahun
     const allGrp = sk.filter(x => x.jenis === j);
     let skor = '–';
     if (allGrp.length) {
@@ -425,7 +420,6 @@ function render27CTable(sk) {
     }
     const skorBadge = skor !== '–' ? (parseFloat(skor)>=3.5?'bgg':parseFloat(skor)>=2.5?'bgt':parseFloat(skor)>=1.5?'bgo':'') : '';
 
-    // Instrumen & Tindak Lanjut — editable oleh superadmin
     const instrAda    = c.instrAda    === '1';
     const instrTidak  = c.instrAda    === '0';
     const tindakLanjut = c.tindak || '';
@@ -509,16 +503,11 @@ function render27CTable(sk) {
   </div>`;
 }
 
-// Save config ke localStorage
 window._skCfgSave = function(jKey, field, value) {
   const cfg = getSkConfig();
   if (!cfg[jKey]) cfg[jKey] = {};
   cfg[jKey][field] = value;
   saveSkConfig(cfg);
-  // Update kolom Tidak Ada secara sinkron
-  if (field === 'instrAda') {
-    // re-render akan dilakukan saat tab dibuka ulang
-  }
 };
 
 async function renderTableStakeholder() {
@@ -555,7 +544,6 @@ async function renderTableStakeholder() {
     : '<tr><td colspan="15"><div class="empty">Belum ada data stakeholder.</div></td></tr>';
 }
 
-// Patch deleteRow agar support TBL_STAKEHOLDER
 window._deleteRow = async function(table, id) {
   if (!isSuperAdmin()) return alert('Akses ditolak.');
   if (!confirm('Yakin hapus data ini?')) return;
@@ -626,7 +614,7 @@ window._deleteAdmin = async (id) => {
 window._addAdmin = addAdmin;
 
 // ════════════════════════════════════════════════════════
-//  GENERATE NARASI AI — menggunakan Claude API (streaming)
+//  GENERATE NARASI AI — menggunakan Google Gemini API
 // ════════════════════════════════════════════════════════
 export async function generateAINarasi() {
   const { al, em, sk } = await getData();
@@ -705,8 +693,8 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     cont.innerHTML = `
       <div class="info-box err">
         <strong>⚠️ API Key belum diisi</strong><br>
-        Masukkan <strong>Anthropic API Key</strong> (sk-ant-...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
-        <small style="color:var(--g500)">API key dapat dibuat di <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal)">console.anthropic.com</a> → API Keys.</small>
+        Masukkan <strong>Gemini API Key</strong> (AIzaSy...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
+        <small style="color:var(--g500)">API key dapat dibuat di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a></small>
       </div>`;
     load.style.display = 'none';
     btn.disabled = false;
@@ -715,20 +703,17 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
   }
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method : 'POST',
-      headers: {
-        'Content-Type'                             : 'application/json',
-        'x-api-key'                                : window.ANTHROPIC_API_KEY || '',
-        'anthropic-version'                        : '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body   : JSON.stringify({
-        model     : 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        messages  : [{ role: 'user', content: prompt }]
-      })
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${window.ANTHROPIC_API_KEY}`,
+      {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1500 }
+        })
+      }
+    );
 
     if (!res.ok) {
       const errData = await res.json().catch(()=>({error:{message:res.statusText}}));
@@ -736,7 +721,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     }
 
     const data = await res.json();
-    const text = data.content?.find(b => b.type === 'text')?.text
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
                  || 'Tidak ada respons dari AI.';
 
     // Render paragraf dengan format rapi
@@ -744,7 +729,6 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       .split('\n\n')
       .filter(p => p.trim())
       .map(p => {
-        // Deteksi heading (angka. atau **teks**)
         if (/^\*\*(.+)\*\*$/.test(p.trim())) {
           return `<h4 style="margin:16px 0 6px;color:var(--navy,#003D5B)">${p.trim().replace(/\*\*/g,'')}</h4>`;
         }
@@ -760,7 +744,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       <div class="info-box err">
         <strong>⚠️ Gagal generate narasi AI</strong><br>
         ${e.message}<br>
-        <small style="color:var(--g500)">Pastikan koneksi internet aktif dan coba lagi.</small>
+        <small style="color:var(--g500)">Pastikan koneksi internet aktif dan API key Gemini valid.</small>
       </div>`;
   } finally {
     load.style.display = 'none';
@@ -795,7 +779,6 @@ export async function exportExcel() {
   const { al, em } = await getData();
   if (!al.length && !em.length) return alert('Belum ada data.');
 
-  // Load SheetJS jika belum ada
   if (!window.XLSX) {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -809,7 +792,6 @@ export async function exportExcel() {
   const wb    = XLSX.utils.book_new();
   const tgl   = new Date().toLocaleDateString('id-ID');
 
-  // Sheet 1 — Data Alumni
   if (al.length) {
     const wsAl = XLSX.utils.json_to_sheet(al.map(a => ({
       'Nama'        : a.nama||'',
@@ -842,7 +824,6 @@ export async function exportExcel() {
     XLSX.utils.book_append_sheet(wb, wsAl, 'Data Alumni');
   }
 
-  // Sheet 2 — Data Pengguna Lulusan
   if (em.length) {
     const wsEm = XLSX.utils.json_to_sheet(em.map(e => ({
       'Instansi'    : e.instansi||'',
@@ -869,7 +850,6 @@ export async function exportExcel() {
     XLSX.utils.book_append_sheet(wb, wsEm, 'Pengguna Lulusan');
   }
 
-  // Sheet 3 — Tabel 2.7B LAM PTIP
   const t27b = ASPEK_LAM.map((r,i) => {
     const k  = `rtg_er${i+1}`;
     const vs = em.map(e=>e[k]).filter(Boolean);
@@ -880,7 +860,6 @@ export async function exportExcel() {
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t27b), 'Tabel 2.7B LAM');
 
-  // Sheet 4 — Tabel 2.8B1 Waktu Tunggu
   const lt6  = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
   const mid  = al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length;
   const gt18 = al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length;
@@ -892,7 +871,6 @@ export async function exportExcel() {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t28b1), 'Tabel 2.8B1 WT');
 
-  // Sheet 5 — Tabel 2.8B2 Tempat Kerja
   const lok = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length;
   const nas = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length;
   const mul = al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length;
@@ -913,7 +891,6 @@ export async function exportWord() {
   if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
   const { al, em } = await getData();
 
-  // Load docx library
   if (!window.docx) {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -932,7 +909,6 @@ export async function exportWord() {
   const lt6   = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
   const pctLt6= al.length?Math.round(lt6/al.length*100):0;
 
-  // Helper buat baris tabel
   const mkRow = (cells, bold=false) => new TableRow({
     children: cells.map(c => new TableCell({
       children: [new Paragraph({ children:[new TextRun({text:String(c),bold,size:20})] })],
@@ -940,7 +916,6 @@ export async function exportWord() {
     }))
   });
 
-  // Tabel 2.7B rows
   const rows27b = ASPEK_LAM.map((r,i) => {
     const k  = `rtg_er${i+1}`;
     const vs = em.map(e=>e[k]).filter(Boolean);
@@ -951,30 +926,23 @@ export async function exportWord() {
   });
 
   const doc = new Document({ sections:[{ children:[
-    // Kop
     new Paragraph({ text:'LAPORAN TRACER STUDY', heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }),
     new Paragraph({ text:'Program Studi Manajemen Sumber Daya Perairan', heading:HeadingLevel.HEADING_2, alignment:AlignmentType.CENTER }),
     new Paragraph({ text:'Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi', alignment:AlignmentType.CENTER, children:[new TextRun({text:'Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi',size:22})] }),
     new Paragraph({ text:`Dicetak: ${tgl}`, alignment:AlignmentType.CENTER, children:[new TextRun({text:`Dicetak: ${tgl}`,size:20,color:'666666'})] }),
     new Paragraph(''),
-
-    // Ringkasan
     new Paragraph({ text:'A. Ringkasan Data', heading:HeadingLevel.HEADING_2 }),
     new Paragraph({ children:[new TextRun({text:`• Total Responden Alumni       : ${al.length} orang`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Total Responden Atasan Langsung Alumni : ${em.length} instansi/perusahaan`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Rata-rata 7 Aspek LAM PTIP  : ${avg7} / 5`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Lulusan WT < 6 bulan        : ${pctLt6}%`,size:22})] }),
     new Paragraph(''),
-
-    // Tabel 2.7B
     new Paragraph({ text:'B. Tabel 2.7B — Kepuasan Pengguna Lulusan', heading:HeadingLevel.HEADING_2 }),
     new Table({ rows:[
       mkRow(['No','Aspek Kompetensi','Sangat Baik(4)','Baik(3)','Cukup(2)','Kurang(1)','Rata-rata'], true),
       ...rows27b
     ]}),
     new Paragraph(''),
-
-    // Tabel 2.8B1
     new Paragraph({ text:'C. Tabel 2.8B1 — Waktu Tunggu Lulusan', heading:HeadingLevel.HEADING_2 }),
     new Table({ rows:[
       mkRow(['Kategori Waktu Tunggu','Jumlah','Persentase'], true),
@@ -983,8 +951,6 @@ export async function exportWord() {
       mkRow(['WT > 18 bulan', al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length, '-']),
     ]}),
     new Paragraph(''),
-
-    // Tabel 2.8B2
     new Paragraph({ text:'D. Tabel 2.8B2 — Tingkat Tempat Kerja', heading:HeadingLevel.HEADING_2 }),
     new Table({ rows:[
       mkRow(['Tingkat Tempat Kerja','Jumlah','Persentase'], true),
@@ -1030,7 +996,6 @@ export function exportPDF() {
 // ════════════════════════════════════════════════════════
 export function printLaporan() { window.print(); }
 
-// ── Expose semua ke HTML
 window._exportCSV    = exportCSV;
 window._exportExcel  = exportExcel;
 window._exportWord   = exportWord;
@@ -1109,7 +1074,6 @@ export async function saveAsPDF(type) {
   if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
   const { al, em, sk } = await getData();
 
-  // Load jsPDF
   if (!window.jspdf) {
     await new Promise((res, rej) => {
       const s = document.createElement('script');
@@ -1118,7 +1082,6 @@ export async function saveAsPDF(type) {
       document.head.appendChild(s);
     });
   }
-  // Load jsPDF-AutoTable
   if (!window.jspdf?.API?.autoTable && !window.jsPDFAutoTable) {
     await new Promise((res, rej) => {
       const s = document.createElement('script');
