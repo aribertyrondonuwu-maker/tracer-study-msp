@@ -354,6 +354,26 @@ table.dt tr:hover td{background:var(--g50);}
   margin-bottom:14px;transition:all .2s;margin-right:6px;}
 .exp-btn:hover{border-color:var(--teal);color:var(--teal);}
 .empty{text-align:center;padding:50px 20px;color:var(--g500);font-size:13.5px;}
+
+/* ══ SAVE-AS DROPDOWN ══ */
+.saveas-wrap{position:relative;display:inline-block;}
+.saveas-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;
+  background:var(--teal);color:#fff;border:none;border-radius:8px;
+  font-size:12.5px;font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,109,119,.18);transition:background .18s;}
+.saveas-btn:hover{background:var(--teal-dk);}
+.saveas-btn .sa-arrow{font-size:9px;margin-left:2px;transition:transform .18s;}
+.saveas-wrap.open .sa-arrow{transform:rotate(180deg);}
+.saveas-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;
+  background:#fff;border:1px solid var(--g200);border-radius:10px;
+  box-shadow:0 8px 28px rgba(0,61,91,.13);min-width:200px;z-index:200;overflow:hidden;}
+.saveas-wrap.open .saveas-menu{display:block;}
+.saveas-item{display:flex;align-items:center;gap:10px;padding:10px 16px;
+  font-size:12.5px;font-family:'Outfit',sans-serif;cursor:pointer;
+  color:var(--g700);transition:background .13s;}
+.saveas-item:hover{background:var(--g50);}
+.saveas-item .si-icon{font-size:15px;width:20px;text-align:center;}
+.saveas-sep{height:1px;background:var(--g100);margin:2px 0;}
 .loading{text-align:center;padding:40px;color:var(--g500);font-size:13px;}
 
 /* ══ ROLE BANNER ══ */
@@ -1140,8 +1160,24 @@ table.dt tr:hover td{background:var(--g50);}
 
     <!-- ── Data Alumni (superadmin only) ── -->
     <div id="ap-al" class="ap">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" class="export-only-superadmin">
-        <button class="exp-btn" onclick="_exportCSV('alumni')">⬇ CSV Alumni</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center" class="export-only-superadmin">
+        <div class="saveas-wrap" id="sa-al">
+          <button class="saveas-btn" onclick="window._toggleSaveAs('sa-al')">
+            <span>⬇ Simpan Data Alumni</span><span class="sa-arrow">▼</span>
+          </button>
+          <div class="saveas-menu">
+            <div class="saveas-item" onclick="window._saveAsExcel('alumni');window._closeSaveAs('sa-al')">
+              <span class="si-icon">📊</span><span>Excel (.xlsx)</span>
+            </div>
+            <div class="saveas-item" onclick="window._saveAsPDF('alumni');window._closeSaveAs('sa-al')">
+              <span class="si-icon">📄</span><span>PDF (.pdf)</span>
+            </div>
+            <div class="saveas-sep"></div>
+            <div class="saveas-item" onclick="window._exportCSV('alumni');window._closeSaveAs('sa-al')">
+              <span class="si-icon">📋</span><span>CSV (.csv)</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="tw"><table class="dt">
         <thead><tr><th>Nama</th><th>NIM</th><th>Lulus</th><th>Email</th><th>Status</th><th>Instansi</th><th>Bidang</th><th>Level</th><th>W.Tunggu</th><th>Kesesuaian</th><th>Gaji</th><th>Rekomen</th><th>Waktu Isi</th><th class="delete-only-superadmin">Aksi</th></tr></thead>
@@ -1151,8 +1187,24 @@ table.dt tr:hover td{background:var(--g50);}
 
     <!-- ── Data Pengguna Lulusan (superadmin only) ── -->
     <div id="ap-em" class="ap">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" class="export-only-superadmin">
-        <button class="exp-btn" onclick="_exportCSV('employer')">⬇ CSV Pengguna Lulusan</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center" class="export-only-superadmin">
+        <div class="saveas-wrap" id="sa-em">
+          <button class="saveas-btn" onclick="window._toggleSaveAs('sa-em')">
+            <span>⬇ Simpan Data Pengguna Lulusan</span><span class="sa-arrow">▼</span>
+          </button>
+          <div class="saveas-menu">
+            <div class="saveas-item" onclick="window._saveAsExcel('employer');window._closeSaveAs('sa-em')">
+              <span class="si-icon">📊</span><span>Excel (.xlsx)</span>
+            </div>
+            <div class="saveas-item" onclick="window._saveAsPDF('employer');window._closeSaveAs('sa-em')">
+              <span class="si-icon">📄</span><span>PDF (.pdf)</span>
+            </div>
+            <div class="saveas-sep"></div>
+            <div class="saveas-item" onclick="window._exportCSV('employer');window._closeSaveAs('sa-em')">
+              <span class="si-icon">📋</span><span>CSV (.csv)</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="tw"><table class="dt">
         <thead><tr><th>Instansi</th><th>Sektor</th><th>Kota</th><th>Pengisi</th><th>Email</th><th>Alumni</th><th>Kepuasan</th><th>Rekrut</th><th>Waktu Isi</th><th class="delete-only-superadmin">Aksi</th></tr></thead>
@@ -1162,8 +1214,24 @@ table.dt tr:hover td{background:var(--g50);}
 
     <!-- ── Data Stakeholder 2.7C (superadmin only) ── -->
     <div id="ap-sk" class="ap">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" class="export-only-superadmin">
-        <button class="exp-btn" onclick="_exportCSV('stakeholder')">⬇ CSV Stakeholder</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center" class="export-only-superadmin">
+        <div class="saveas-wrap" id="sa-sk">
+          <button class="saveas-btn" onclick="window._toggleSaveAs('sa-sk')">
+            <span>⬇ Simpan Data Stakeholder</span><span class="sa-arrow">▼</span>
+          </button>
+          <div class="saveas-menu">
+            <div class="saveas-item" onclick="window._saveAsExcel('stakeholder');window._closeSaveAs('sa-sk')">
+              <span class="si-icon">📊</span><span>Excel (.xlsx)</span>
+            </div>
+            <div class="saveas-item" onclick="window._saveAsPDF('stakeholder');window._closeSaveAs('sa-sk')">
+              <span class="si-icon">📄</span><span>PDF (.pdf)</span>
+            </div>
+            <div class="saveas-sep"></div>
+            <div class="saveas-item" onclick="window._exportCSV('stakeholder');window._closeSaveAs('sa-sk')">
+              <span class="si-icon">📋</span><span>CSV (.csv)</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="tw"><table class="dt">
         <thead><tr>
@@ -1530,3 +1598,23 @@ table.dt tr:hover td{background:var(--g50);}
   Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi<br>
   Jl. Kampus UNSRAT, Bahu, Manado 95115, Sul
 <script type="module" src="./app.js"></script>
+<script>
+// ── Save As dropdown toggle / close
+window._toggleSaveAs = function(id) {
+  const el = document.getElementById(id);
+  const isOpen = el.classList.contains('open');
+  // Close all first
+  document.querySelectorAll('.saveas-wrap.open').forEach(w => w.classList.remove('open'));
+  if (!isOpen) el.classList.add('open');
+};
+window._closeSaveAs = function(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+};
+// Close on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.saveas-wrap')) {
+    document.querySelectorAll('.saveas-wrap.open').forEach(w => w.classList.remove('open'));
+  }
+});
+</script>

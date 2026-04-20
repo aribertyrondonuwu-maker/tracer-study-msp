@@ -952,6 +952,174 @@ window._exportPDF    = exportPDF;
 window._printLaporan = printLaporan;
 
 // ════════════════════════════════════════════════════════
+//  SAVE AS — Excel per Tab
+// ════════════════════════════════════════════════════════
+export async function saveAsExcel(type) {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
+  const { al, em, sk } = await getData();
+
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  const XLSX = window.XLSX;
+  const wb   = XLSX.utils.book_new();
+  const tgl  = new Date().toISOString().slice(0,10);
+
+  if (type === 'alumni') {
+    if (!al.length) return alert('Belum ada data alumni.');
+    const ws = XLSX.utils.json_to_sheet(al.map(a => ({
+      'Nama': a.nama||'', 'NIM': a.nim||'', 'Thn Masuk': a.masuk||'', 'Thn Lulus': a.lulus||'',
+      'Email': a.email||'', 'HP': a.hp||'', 'Gender': a.gender||'', 'IPK': a.ipk||'',
+      'Status': a.status||'', 'Waktu Tunggu': a.tunggu||'', 'Instansi': a.instansi||'',
+      'Jabatan': a.jabatan||'', 'Kota': a.kota||'', 'Bidang': a.bidang||'',
+      'Level Kerja': a.level_kerja||'', 'Gaji': a.gaji||'', 'Kesesuaian': a.kesesuaian||'',
+      'Rekomendasi': a.rekomendasi||'',
+      'Rtg AR1': a.rtg_ar1||'', 'Rtg AR2': a.rtg_ar2||'', 'Rtg AR3': a.rtg_ar3||'',
+      'Rtg AR4': a.rtg_ar4||'', 'Rtg AR5': a.rtg_ar5||'', 'Rtg AR6': a.rtg_ar6||'',
+      'Rtg AR7': a.rtg_ar7||'', 'Tgl Isi': new Date(a.created_at).toLocaleDateString('id-ID'),
+    })));
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Alumni');
+    XLSX.writeFile(wb, `DataAlumni_MSP_${tgl}.xlsx`);
+
+  } else if (type === 'employer') {
+    if (!em.length) return alert('Belum ada data pengguna lulusan.');
+    const ws = XLSX.utils.json_to_sheet(em.map(e => ({
+      'Instansi': e.instansi||'', 'Sektor': e.sektor||'', 'Kota': e.kota||'',
+      'Pengisi': e.pengisi||'', 'Jabatan': e.jab_pengisi||'', 'Email': e.email||'',
+      'Telp': e.telp||'', 'Alumni': e.alumni_nama||'', 'Jab Alumni': e.alumni_jab||'',
+      'Lama Kerja': e.lama||'',
+      'Rtg ER1': e.rtg_er1||'', 'Rtg ER2': e.rtg_er2||'', 'Rtg ER3': e.rtg_er3||'',
+      'Rtg ER4': e.rtg_er4||'', 'Rtg ER5': e.rtg_er5||'', 'Rtg ER6': e.rtg_er6||'',
+      'Rtg ER7': e.rtg_er7||'', 'Kepuasan': e.kepuasan||'', 'Rekrut': e.rekrut||'',
+      'Tgl Isi': new Date(e.created_at).toLocaleDateString('id-ID'),
+    })));
+    XLSX.utils.book_append_sheet(wb, ws, 'Pengguna Lulusan');
+    XLSX.writeFile(wb, `DataPenggunaLulusan_MSP_${tgl}.xlsx`);
+
+  } else if (type === 'stakeholder') {
+    if (!sk.length) return alert('Belum ada data stakeholder.');
+    const ws = XLSX.utils.json_to_sheet(sk.map(s => ({
+      'Tahun Survei': s.tahun_survei||'', 'Jenis': s.jenis||'', 'Nama': s.nama||'',
+      'Instansi': s.instansi||'', 'Email': s.email||'',
+      'Rtg SK1': s.rtg_sk1||'', 'Rtg SK2': s.rtg_sk2||'', 'Rtg SK3': s.rtg_sk3||'',
+      'Rtg SK4': s.rtg_sk4||'', 'Rtg SK5': s.rtg_sk5||'', 'Rtg SK6': s.rtg_sk6||'',
+      'Rtg SK7': s.rtg_sk7||'', 'Kepuasan': s.kepuasan||'', 'Saran': s.saran||'',
+      'Tgl Isi': new Date(s.created_at).toLocaleDateString('id-ID'),
+    })));
+    XLSX.utils.book_append_sheet(wb, ws, 'Stakeholder');
+    XLSX.writeFile(wb, `DataStakeholder_MSP_${tgl}.xlsx`);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  SAVE AS — PDF per Tab (via jsPDF + autoTable CDN)
+// ════════════════════════════════════════════════════════
+export async function saveAsPDF(type) {
+  if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
+  const { al, em, sk } = await getData();
+
+  // Load jsPDF
+  if (!window.jspdf) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+  // Load jsPDF-AutoTable
+  if (!window.jspdf?.API?.autoTable && !window.jsPDFAutoTable) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const tgl = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  const tglFile = new Date().toISOString().slice(0,10);
+
+  const addHeader = (title, subtitle) => {
+    doc.setFillColor(0, 61, 91);
+    doc.rect(0, 0, doc.internal.pageSize.width, 50, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.text('TRACER STUDY — MSP FPIK UNSRAT', 36, 20);
+    doc.setFontSize(11); doc.setFont('helvetica','normal');
+    doc.text(title, 36, 34);
+    doc.setFontSize(9);
+    doc.text(`Dicetak: ${tgl}  |  ${subtitle}`, 36, 46);
+    doc.setTextColor(0, 0, 0);
+  };
+
+  if (type === 'alumni') {
+    if (!al.length) return alert('Belum ada data alumni.');
+    addHeader('Data Alumni', `${al.length} responden`);
+    doc.autoTable({
+      startY: 60,
+      head: [['Nama','NIM','Lulus','Email','Status','Instansi','Bidang','W.Tunggu','Kesesuaian','Gaji']],
+      body: al.map(a => [
+        a.nama||'–', a.nim||'–', a.lulus||'–', a.email||'–',
+        a.status||'–', a.instansi||'–', (a.bidang||'–').split('(')[0].trim(),
+        a.tunggu||'–', a.kesesuaian||'–', a.gaji||'–',
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 4 },
+      headStyles: { fillColor: [0,109,119], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240,250,251] },
+      margin: { left: 24, right: 24 },
+    });
+    doc.save(`DataAlumni_MSP_${tglFile}.pdf`);
+
+  } else if (type === 'employer') {
+    if (!em.length) return alert('Belum ada data pengguna lulusan.');
+    addHeader('Data Pengguna Lulusan', `${em.length} responden`);
+    doc.autoTable({
+      startY: 60,
+      head: [['Instansi','Sektor','Kota','Pengisi','Email','Alumni','Kepuasan','Rekrut','Tgl Isi']],
+      body: em.map(e => [
+        e.instansi||'–', e.sektor||'–', e.kota||'–', e.pengisi||'–', e.email||'–',
+        e.alumni_nama||'–', e.kepuasan||'–', e.rekrut||'–',
+        new Date(e.created_at).toLocaleDateString('id-ID'),
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 4 },
+      headStyles: { fillColor: [0,61,91], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240,250,251] },
+      margin: { left: 24, right: 24 },
+    });
+    doc.save(`DataPenggunaLulusan_MSP_${tglFile}.pdf`);
+
+  } else if (type === 'stakeholder') {
+    if (!sk.length) return alert('Belum ada data stakeholder.');
+    addHeader('Data Kepuasan Stakeholder (Tabel 2.7C)', `${sk.length} responden`);
+    doc.autoTable({
+      startY: 60,
+      head: [['Tahun','Jenis','Nama','Instansi','SK1','SK2','SK3','SK4','SK5','SK6','SK7','Kepuasan']],
+      body: sk.map(s => [
+        s.tahun_survei||'–', s.jenis||'–', s.nama||'–', s.instansi||'–',
+        s.rtg_sk1||'–', s.rtg_sk2||'–', s.rtg_sk3||'–', s.rtg_sk4||'–',
+        s.rtg_sk5||'–', s.rtg_sk6||'–', s.rtg_sk7||'–', s.kepuasan||'–',
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 4 },
+      headStyles: { fillColor: [27,122,74], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [230,245,238] },
+      margin: { left: 24, right: 24 },
+    });
+    doc.save(`DataStakeholder_MSP_${tglFile}.pdf`);
+  }
+}
+
+window._saveAsExcel = saveAsExcel;
+window._saveAsPDF   = saveAsPDF;
+
+// ════════════════════════════════════════════════════════
 //  CHART HELPERS
 // ════════════════════════════════════════════════════════
 function dChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
