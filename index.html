@@ -1113,7 +1113,17 @@ table.dt tr:hover td{background:var(--g50);}
         <button class="exp-btn" onclick="_exportExcel()" style="border-color:var(--green);color:var(--green);font-weight:600">📊 Excel (.xlsx)</button>
         <button class="exp-btn" onclick="_exportPDF()" style="border-color:#C0392B;color:#C0392B;font-weight:600">📄 PDF</button>
         <button class="exp-btn" onclick="_printLaporan()" style="border-color:var(--navy);color:var(--navy);font-weight:600">🖨️ Cetak</button>
-        <div style="margin-left:auto">
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <!-- Input API Key Claude -->
+          <div style="display:flex;align-items:center;gap:6px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;padding:4px 10px">
+            <span style="font-size:10.5px;color:var(--g500);white-space:nowrap;font-weight:600">🔑 API Key:</span>
+            <input type="password" id="ai-key-input" placeholder="sk-ant-..." 
+              style="border:none;background:transparent;font-size:11.5px;color:var(--g700);width:160px;outline:none;font-family:monospace"
+              oninput="window._setAIKey(this.value)"
+              title="Masukkan Anthropic API Key untuk Generate Narasi AI">
+            <button onclick="document.getElementById('ai-key-input').type = document.getElementById('ai-key-input').type==='password'?'text':'password'" 
+              style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:var(--g500)" title="Tampilkan/Sembunyikan">👁</button>
+          </div>
           <button class="btn-n" onclick="_generateAI()" id="btn-ai" style="font-size:12px;padding:8px 16px;gap:6px">
             <span>✨</span><span id="btn-ai-txt">Generate Narasi AI</span>
           </button>
@@ -1605,6 +1615,20 @@ table.dt tr:hover td{background:var(--g50);}
   <strong>Program Studi Manajemen Sumber Daya Perairan (MSP)</strong><br>
   Fakultas Perikanan dan Ilmu Kelautan · Universitas Sam Ratulangi<br>
   Jl. Kampus UNSRAT, Bahu, Manado 95115, Sul
+
+<script>
+// ── Anthropic API Key (disimpan di localStorage, hanya superadmin)
+window.ANTHROPIC_API_KEY = localStorage.getItem('msp_ai_key') || '';
+window._setAIKey = function(key) {
+  window.ANTHROPIC_API_KEY = key.trim();
+  localStorage.setItem('msp_ai_key', key.trim());
+};
+// Restore input saat DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  const inp = document.getElementById('ai-key-input');
+  if (inp && window.ANTHROPIC_API_KEY) inp.value = window.ANTHROPIC_API_KEY;
+});
+</script>
 <script type="module" src="./app.js"></script>
 <script>
 // ── Save As dropdown toggle / close

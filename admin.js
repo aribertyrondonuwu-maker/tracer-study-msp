@@ -700,10 +700,29 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 5. Kepuasan stakeholder (Tabel 2.7C)
 6. Kesimpulan dan rekomendasi tindak lanjut untuk peningkatan mutu prodi`;
 
+  // Cek API key
+  if (!window.ANTHROPIC_API_KEY) {
+    cont.innerHTML = `
+      <div class="info-box err">
+        <strong>⚠️ API Key belum diisi</strong><br>
+        Masukkan <strong>Anthropic API Key</strong> (sk-ant-...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
+        <small style="color:var(--g500)">API key dapat dibuat di <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal)">console.anthropic.com</a> → API Keys.</small>
+      </div>`;
+    load.style.display = 'none';
+    btn.disabled = false;
+    txt.textContent = '✨ Generate Narasi AI';
+    return;
+  }
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type'                             : 'application/json',
+        'x-api-key'                                : window.ANTHROPIC_API_KEY || '',
+        'anthropic-version'                        : '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body   : JSON.stringify({
         model     : 'claude-sonnet-4-20250514',
         max_tokens: 1500,
