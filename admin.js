@@ -688,8 +688,8 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 5. Kepuasan stakeholder (Tabel 2.7C)
 6. Kesimpulan dan rekomendasi tindak lanjut untuk peningkatan mutu prodi`;
 
-  // Cek API key — gunakan key default atau dari input pengguna
-  const GEMINI_KEY = window.GEMINI_API_KEY || 'AIzaSyCzJa_zyAIdo_gEkd16OUbl7h7l7ip-V5E';
+  // Cek API key — gunakan key dari input pengguna atau key default
+  const GEMINI_KEY = window.GEMINI_API_KEY || 'AIzaSyD0ry5P_1Q5kp7ovZjbnk_9bP65Ja-hNb4';
   if (!GEMINI_KEY) {
     cont.innerHTML = `
       <div class="info-box err">
@@ -703,55 +703,129 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     return;
   }
 
-  try {
+  // Daftar model Gemini (stable, urut prioritas — kalau gagal fallback ke berikutnya)
+  const MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash'
+  ];
+
+  const callGemini = async (model) => {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
       {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 2048 }
+          generationConfig: {
+            temperature     : 0.7,
+            maxOutputTokens : 4096,
+            // Matikan "thinking" supaya output token dipakai untuk teks narasi,
+            // bukan habis untuk internal reasoning. Khusus untuk model 2.5.
+            thinkingConfig  : { thinkingBudget: 0 }
+          }
         })
       }
     );
 
     if (!res.ok) {
       const errData = await res.json().catch(()=>({error:{message:res.statusText}}));
-      throw new Error(errData?.error?.message || `HTTP ${res.status}`);
+      const msg = errData?.error?.message || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.status = res.status;
+      err.isQuota = /quota|rate|429|resource_exhausted/i.test(msg) || res.status === 429;
+      err.isNotFound = res.status === 404 || /not found|not supported/i.test(msg);
+      throw err;
     }
 
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-                 || 'Tidak ada respons dari AI.';
+    const cand = data.candidates?.[0];
+    const text = cand?.content?.parts?.map(p => p.text || '').join('') || '';
+    const finish = cand?.finishReason || '';
 
-    // Render paragraf dengan format rapi
-    cont.innerHTML = text
-      .split('\n\n')
-      .filter(p => p.trim())
-      .map(p => {
-        if (/^\*\*(.+)\*\*$/.test(p.trim())) {
-          return `<h4 style="margin:16px 0 6px;color:var(--navy,#003D5B)">${p.trim().replace(/\*\*/g,'')}</h4>`;
-        }
-        if (/^\d+\.\s/.test(p.trim()) && p.length < 100) {
-          return `<h4 style="margin:16px 0 6px;color:var(--navy,#003D5B)">${p.trim()}</h4>`;
-        }
-        return `<p style="margin-bottom:12px;line-height:1.7;text-align:justify">${p.trim().replace(/\n/g,' ')}</p>`;
-      })
-      .join('');
+    if (!text.trim()) {
+      const hint = finish === 'MAX_TOKENS'
+        ? 'Respon terpotong (MAX_TOKENS). Coba lagi — kadang model kehabisan token di tengah.'
+        : finish === 'SAFETY'
+          ? 'Diblokir oleh filter safety Gemini.'
+          : `Tidak ada teks dikembalikan (finishReason: ${finish || 'unknown'}).`;
+      throw new Error(hint);
+    }
+    return { text, model };
+  };
 
-  } catch(e) {
+  // Coba model satu per satu, fallback kalau gagal
+  let result = null;
+  let lastErr = null;
+  for (const model of MODELS) {
+    try {
+      txt.textContent = `⏳ Menghubungi ${model}...`;
+      result = await callGemini(model);
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[AI] Model ${model} gagal:`, e.message);
+      // Kalau bukan error kuota/not-found, langsung berhenti (mis. auth error, network)
+      if (!e.isQuota && !e.isNotFound) break;
+    }
+  }
+
+  if (!result) {
     cont.innerHTML = `
       <div class="info-box err">
         <strong>⚠️ Gagal generate narasi AI</strong><br>
-        ${e.message}<br>
-        <small style="color:var(--g500)">Pastikan koneksi internet aktif dan API key Gemini valid.</small>
+        ${lastErr?.message || 'Tidak diketahui'}<br>
+        <small style="color:var(--g500)">
+          Cek: (1) koneksi internet, (2) API key Gemini valid di
+          <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a>,
+          (3) kuota harian belum habis.
+        </small>
       </div>`;
-  } finally {
     load.style.display = 'none';
     btn.disabled = false;
     txt.textContent = '✨ Generate Narasi AI';
+    return;
   }
+
+  // Render markdown sederhana ke HTML
+  const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inlineMd = (s) =>
+    escapeHtml(s)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  const html = result.text
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean)
+    .map(p => {
+      // Heading markdown (## atau ###)
+      const h = p.match(/^(#{1,4})\s+(.+)$/);
+      if (h) {
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(h[2])}</h4>`;
+      }
+      // Paragraf yang full bold (judul section)
+      if (/^\*\*[^*]+\*\*\s*:?\s*$/.test(p)) {
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p.replace(/\*\*/g,''))}</h4>`;
+      }
+      // Nomor section pendek ("1. Pendahuluan")
+      if (/^\d+\.\s+[^.]{3,80}$/.test(p)) {
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p)}</h4>`;
+      }
+      // Paragraf biasa
+      return `<p style="margin-bottom:12px;line-height:1.75;text-align:justify">${inlineMd(p.replace(/\n/g,' '))}</p>`;
+    })
+    .join('');
+
+  cont.innerHTML = html + `
+    <p style="font-size:10.5px;color:var(--g500);margin-top:16px;padding-top:10px;border-top:1px dashed var(--g200)">
+      <em>✨ Narasi dibuat otomatis oleh Google ${result.model}. Silakan tinjau, edit, dan sesuaikan dengan konteks institusi sebelum dipublikasikan.</em>
+    </p>`;
+
+  load.style.display = 'none';
+  btn.disabled = false;
+  txt.textContent = '✨ Generate Narasi AI';
 }
 window._generateAI = generateAINarasi;
 
