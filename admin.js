@@ -742,6 +742,9 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       err.isNotFound = res.status === 404 || /not found|not supported/i.test(msg);
       err.isLeaked = /leaked|reported/i.test(msg);
       err.isAuth = res.status === 401 || res.status === 403;
+      err.isOverload = res.status === 503 || res.status === 500 || /overload|unavailable|high demand|try again later/i.test(msg);
+      // "Transient" = worth retrying / fallback: overload, quota, not-found
+      err.isTransient = err.isOverload || err.isQuota || err.isNotFound;
       throw err;
     }
 
@@ -761,21 +764,41 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     return { text, model };
   };
 
-  // Coba model satu per satu
+  // Coba setiap model, dengan retry untuk error transient (overload/503)
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   let result = null;
   let lastErr = null;
-  for (const model of MODELS) {
-    try {
-      txt.textContent = `⏳ ${model}...`;
-      result = await callGemini(model);
-      break;
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[AI] Model ${model} gagal:`, e.message);
-      // Kalau auth/leaked error, langsung stop (fallback model tidak akan membantu)
-      if (e.isAuth || e.isLeaked) break;
-      // Kalau bukan kuota/not-found, juga stop
-      if (!e.isQuota && !e.isNotFound) break;
+
+  outer: for (const model of MODELS) {
+    // Retry hingga 3x per model untuk error overload (503)
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const suffix = attempt > 1 ? ` (retry ${attempt}/${MAX_RETRIES})` : '';
+        txt.textContent = `⏳ ${model}${suffix}...`;
+        result = await callGemini(model);
+        break outer; // Berhasil — keluar dari semua loop
+      } catch (e) {
+        lastErr = e;
+        console.warn(`[AI] ${model} attempt ${attempt}: ${e.message}`);
+
+        // Auth/leaked error → stop semua, jangan coba model lain
+        if (e.isAuth || e.isLeaked) break outer;
+
+        // Error permanen (bukan transient) → langsung coba model berikutnya, tidak retry
+        if (!e.isTransient) break; // keluar dari inner loop, lanjut ke model berikutnya
+
+        // Overload & masih ada retry tersisa → tunggu dengan exponential backoff
+        if (e.isOverload && attempt < MAX_RETRIES) {
+          const delay = 2000 * attempt; // 2s, 4s, 6s
+          txt.textContent = `⏳ Server sibuk, tunggu ${delay/1000}s...`;
+          await sleep(delay);
+          continue; // retry model yang sama
+        }
+
+        // Kuota/not-found atau retry habis → break ke model berikutnya
+        break;
+      }
     }
   }
 
@@ -793,6 +816,15 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
         2. Hapus key lama, buat key baru<br>
         3. Paste key baru di kolom 🔑 Gemini Key di atas<br>
         4. <strong>Jangan</strong> commit key ke repo public`;
+    } else if (lastErr?.isOverload) {
+      title = '⏳ Server Gemini sedang sibuk (overload)';
+      hint = `
+        Semua model Gemini sedang mengalami lonjakan permintaan (status 503). Ini bersifat sementara dan di luar kendali aplikasi.<br><br>
+        <strong>Solusi:</strong><br>
+        • Tunggu <strong>1-5 menit</strong>, lalu klik Generate lagi<br>
+        • Coba di waktu yang lebih sepi (pagi/malam WIB)<br>
+        • Kalau terus-menerus 503, cek status Google di
+          <a href="https://status.cloud.google.com" target="_blank" style="color:var(--teal)">status.cloud.google.com</a>`;
     } else if (lastErr?.isAuth) {
       hint = 'API key tidak valid atau tidak punya akses. Cek lagi key Anda di aistudio.google.com/apikey.';
     } else if (lastErr?.isQuota) {
