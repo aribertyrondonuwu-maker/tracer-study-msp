@@ -688,14 +688,19 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 5. Kepuasan stakeholder (Tabel 2.7C)
 6. Kesimpulan dan rekomendasi tindak lanjut untuk peningkatan mutu prodi`;
 
-  // Cek API key — gunakan key dari input pengguna atau key default
-  const GEMINI_KEY = window.GEMINI_API_KEY || 'AIzaSyD0ry5P_1Q5kp7ovZjbnk_9bP65Ja-hNb4';
+  // Ambil API key dari user (localStorage via _setAIKey, atau window.GEMINI_API_KEY)
+  // TIDAK ADA key hardcoded — supaya tidak ter-leak saat repo public di GitHub.
+  const GEMINI_KEY = (window.GEMINI_API_KEY || '').trim();
   if (!GEMINI_KEY) {
     cont.innerHTML = `
       <div class="info-box err">
-        <strong>⚠️ API Key belum diisi</strong><br>
-        Masukkan <strong>Gemini API Key</strong> (AIzaSy...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
-        <small style="color:var(--g500)">API key dapat dibuat di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a></small>
+        <strong>⚠️ API Key Gemini belum diisi</strong><br>
+        Masukkan <strong>Gemini API Key</strong> (format: AIzaSy...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
+        <small style="color:var(--g500)">
+          Buat API key gratis di
+          <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a>.
+          Key akan disimpan di browser Anda (localStorage), tidak pernah dikirim ke server manapun selain Google.
+        </small>
       </div>`;
     load.style.display = 'none';
     btn.disabled = false;
@@ -703,7 +708,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     return;
   }
 
-  // Daftar model Gemini (stable, urut prioritas — kalau gagal fallback ke berikutnya)
+  // Daftar model stable, urut prioritas. Fallback otomatis kalau gagal kuota/not-found.
   const MODELS = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
@@ -721,8 +726,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
           generationConfig: {
             temperature     : 0.7,
             maxOutputTokens : 4096,
-            // Matikan "thinking" supaya output token dipakai untuk teks narasi,
-            // bukan habis untuk internal reasoning. Khusus untuk model 2.5.
+            // Matikan "thinking" supaya token output dipakai untuk teks, bukan reasoning internal
             thinkingConfig  : { thinkingBudget: 0 }
           }
         })
@@ -736,6 +740,8 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       err.status = res.status;
       err.isQuota = /quota|rate|429|resource_exhausted/i.test(msg) || res.status === 429;
       err.isNotFound = res.status === 404 || /not found|not supported/i.test(msg);
+      err.isLeaked = /leaked|reported/i.test(msg);
+      err.isAuth = res.status === 401 || res.status === 403;
       throw err;
     }
 
@@ -746,41 +752,60 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 
     if (!text.trim()) {
       const hint = finish === 'MAX_TOKENS'
-        ? 'Respon terpotong (MAX_TOKENS). Coba lagi — kadang model kehabisan token di tengah.'
+        ? 'Respon terpotong (MAX_TOKENS). Coba lagi — kadang model habiskan token untuk internal reasoning.'
         : finish === 'SAFETY'
-          ? 'Diblokir oleh filter safety Gemini.'
+          ? 'Diblokir oleh filter safety Gemini. Coba ubah bahasa prompt.'
           : `Tidak ada teks dikembalikan (finishReason: ${finish || 'unknown'}).`;
       throw new Error(hint);
     }
     return { text, model };
   };
 
-  // Coba model satu per satu, fallback kalau gagal
+  // Coba model satu per satu
   let result = null;
   let lastErr = null;
   for (const model of MODELS) {
     try {
-      txt.textContent = `⏳ Menghubungi ${model}...`;
+      txt.textContent = `⏳ ${model}...`;
       result = await callGemini(model);
       break;
     } catch (e) {
       lastErr = e;
       console.warn(`[AI] Model ${model} gagal:`, e.message);
-      // Kalau bukan error kuota/not-found, langsung berhenti (mis. auth error, network)
+      // Kalau auth/leaked error, langsung stop (fallback model tidak akan membantu)
+      if (e.isAuth || e.isLeaked) break;
+      // Kalau bukan kuota/not-found, juga stop
       if (!e.isQuota && !e.isNotFound) break;
     }
   }
 
   if (!result) {
+    // Susun pesan error yang informatif
+    let title = '⚠️ Gagal generate narasi AI';
+    let hint = '';
+    if (lastErr?.isLeaked) {
+      title = '🔒 API Key telah di-revoke oleh Google';
+      hint = `
+        Google mendeteksi API key Anda ter-expose di tempat public (misalnya GitHub).
+        Sebagai tindakan keamanan, key tersebut otomatis dinonaktifkan.<br><br>
+        <strong>Solusi:</strong><br>
+        1. Buka <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a><br>
+        2. Hapus key lama, buat key baru<br>
+        3. Paste key baru di kolom 🔑 Gemini Key di atas<br>
+        4. <strong>Jangan</strong> commit key ke repo public`;
+    } else if (lastErr?.isAuth) {
+      hint = 'API key tidak valid atau tidak punya akses. Cek lagi key Anda di aistudio.google.com/apikey.';
+    } else if (lastErr?.isQuota) {
+      hint = 'Kuota harian habis. Tunggu reset besok atau upgrade ke tier berbayar.';
+    } else {
+      hint = lastErr?.message || 'Unknown error';
+    }
+
     cont.innerHTML = `
       <div class="info-box err">
-        <strong>⚠️ Gagal generate narasi AI</strong><br>
-        ${lastErr?.message || 'Tidak diketahui'}<br>
-        <small style="color:var(--g500)">
-          Cek: (1) koneksi internet, (2) API key Gemini valid di
-          <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--teal)">aistudio.google.com/apikey</a>,
-          (3) kuota harian belum habis.
-        </small>
+        <strong>${title}</strong><br>
+        ${hint}<br>
+        <small style="color:var(--g500);display:block;margin-top:8px">Detail teknis: ${lastErr?.message || '-'}</small>
       </div>`;
     load.style.display = 'none';
     btn.disabled = false;
@@ -788,7 +813,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     return;
   }
 
-  // Render markdown sederhana ke HTML
+  // Render markdown sederhana → HTML
   const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const inlineMd = (s) =>
     escapeHtml(s)
@@ -800,20 +825,16 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     .map(p => p.trim())
     .filter(Boolean)
     .map(p => {
-      // Heading markdown (## atau ###)
       const h = p.match(/^(#{1,4})\s+(.+)$/);
       if (h) {
         return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(h[2])}</h4>`;
       }
-      // Paragraf yang full bold (judul section)
       if (/^\*\*[^*]+\*\*\s*:?\s*$/.test(p)) {
         return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p.replace(/\*\*/g,''))}</h4>`;
       }
-      // Nomor section pendek ("1. Pendahuluan")
       if (/^\d+\.\s+[^.]{3,80}$/.test(p)) {
         return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p)}</h4>`;
       }
-      // Paragraf biasa
       return `<p style="margin-bottom:12px;line-height:1.75;text-align:justify">${inlineMd(p.replace(/\n/g,' '))}</p>`;
     })
     .join('');

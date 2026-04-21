@@ -1117,10 +1117,10 @@ table.dt tr:hover td{background:var(--g50);}
           <!-- Input API Key Gemini (opsional - sudah ada key default) -->
           <div style="display:flex;align-items:center;gap:6px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;padding:4px 10px">
             <span style="font-size:10.5px;color:var(--g500);white-space:nowrap;font-weight:600">🔑 Gemini Key:</span>
-            <input type="password" id="ai-key-input" placeholder="AIzaSy... (opsional)" 
+            <input type="password" id="ai-key-input" placeholder="AIzaSy... (wajib diisi)" 
               style="border:none;background:transparent;font-size:11.5px;color:var(--g700);width:160px;outline:none;font-family:monospace"
               oninput="window._setAIKey(this.value)"
-              title="Kosongkan untuk pakai key default. Isi untuk override dengan key Gemini Anda sendiri.">
+              title="Paste API key Gemini Anda di sini. Key disimpan di browser Anda, tidak pernah dikirim ke tempat lain selain Google.">
             <button onclick="document.getElementById('ai-key-input').type = document.getElementById('ai-key-input').type==='password'?'text':'password'" 
               style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:var(--g500)" title="Tampilkan/Sembunyikan">👁</button>
           </div>
@@ -1617,23 +1617,39 @@ table.dt tr:hover td{background:var(--g50);}
   Jl. Kampus UNSRAT, Bahu, Manado 95115, Sul
 
 <script>
-// ── Gemini API Key (disimpan di localStorage, bisa di-override lewat input)
-const _defaultGeminiKey = 'AIzaSyD0ry5P_1Q5kp7ovZjbnk_9bP65Ja-hNb4';
-window.GEMINI_API_KEY = localStorage.getItem('msp_gemini_key') || _defaultGeminiKey;
+// ── Gemini API Key (disimpan hanya di localStorage browser user, TIDAK di-hardcode di source code)
+// Alasan: kalau key di-hardcode dan repo public di GitHub, Google scanner akan mendeteksi
+// dan otomatis me-revoke key dalam hitungan menit.
+
+// Daftar key lama yang sudah di-revoke (auto-clear dari localStorage supaya user langsung input key baru)
+const _revokedKeys = [
+  'AIzaSyCzJa_zyAIdo_gEkd16OUbl7h7l7ip-V5E', // key default lama yang sudah leaked
+];
+
+(function initGeminiKey() {
+  const saved = localStorage.getItem('msp_gemini_key');
+  if (saved && _revokedKeys.includes(saved)) {
+    localStorage.removeItem('msp_gemini_key');
+    console.warn('[Gemini] Key lama yang sudah di-revoke telah di-clear dari localStorage. Silakan input key baru.');
+  }
+  window.GEMINI_API_KEY = localStorage.getItem('msp_gemini_key') || '';
+})();
+
 window._setAIKey = function(key) {
-  const k = key.trim();
-  window.GEMINI_API_KEY = k || _defaultGeminiKey;
+  const k = (key || '').trim();
+  window.GEMINI_API_KEY = k;
   if (k) localStorage.setItem('msp_gemini_key', k);
   else localStorage.removeItem('msp_gemini_key');
 };
+
 // Restore input saat DOM ready
 document.addEventListener('DOMContentLoaded', function() {
   const inp = document.getElementById('ai-key-input');
   if (inp) {
     const saved = localStorage.getItem('msp_gemini_key');
     if (saved) inp.value = saved;
-    inp.placeholder = 'AIzaSy... (opsional)';
-    inp.title = 'Kosongkan untuk pakai key default. Isi untuk override dengan key Anda sendiri.';
+    inp.placeholder = 'AIzaSy... (wajib diisi)';
+    inp.title = 'Paste API key Gemini Anda di sini. Key disimpan di browser Anda saja, tidak pernah dikirim ke server lain selain Google.';
   }
 });
 </script>
