@@ -688,8 +688,9 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 5. Kepuasan stakeholder (Tabel 2.7C)
 6. Kesimpulan dan rekomendasi tindak lanjut untuk peningkatan mutu prodi`;
 
-  // Cek API key
-  if (!window.ANTHROPIC_API_KEY) {
+  // Cek API key — gunakan key default atau dari input pengguna
+  const GEMINI_KEY = window.GEMINI_API_KEY || 'AIzaSyCzJa_zyAIdo_gEkd16OUbl7h7l7ip-V5E';
+  if (!GEMINI_KEY) {
     cont.innerHTML = `
       <div class="info-box err">
         <strong>⚠️ API Key belum diisi</strong><br>
@@ -704,13 +705,13 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${window.ANTHROPIC_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_KEY}`,
       {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1500 }
+          generationConfig: { maxOutputTokens: 2048 }
         })
       }
     );
