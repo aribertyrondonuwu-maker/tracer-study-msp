@@ -194,7 +194,7 @@ async function renderLAM() {
     <strong>📊 Tabel 2.7C — Kepuasan Stakeholder Internal & Eksternal (${_cache.sk?.length||0} responden)</strong>
   </div>
   <div class="tw">
-    ${render27CTable(_cache.sk||[])}
+    ${render27CTable(_cache.sk||[], _cache.em||[])}
   </div>`;
 }
 
@@ -240,7 +240,7 @@ function renderLAM27C(sk) {
   const el = document.getElementById('sec-27c');
   if (!el) return;
   if (!sk || !sk.length) { el.innerHTML = '<div class="empty">Belum ada data kepuasan stakeholder.</div>'; return; }
-  el.innerHTML = `<div class="tw">${render27CTable(sk)}</div>`;
+  el.innerHTML = `<div class="tw">${render27CTable(sk, _cache.em||[])}</div>`;
 }
 
 function renderLAM28B1(al) {
@@ -345,7 +345,10 @@ function saveSkConfig(cfg) {
 const JENIS_LIST = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
 const TAHUN = { TS: TAHUN_SURVEI.TS, TS1: TAHUN_SURVEI.TS_1, TS2: TAHUN_SURVEI.TS_2 };
 
-function render27CTable(sk) {
+function render27CTable(sk, em) {
+  // em (ts_employer) digunakan khusus untuk baris "Pengguna Lulusan"
+  // karena data mereka masuk lewat form Atasan Langsung, bukan form Stakeholder
+  const _em = em || _cache.em || [];
   const cfg = getSkConfig();
 
   const headerRow = `
@@ -388,9 +391,15 @@ function render27CTable(sk) {
     const jKey  = j.replace(/\s+/g,'_');
     const c     = cfg[jKey] || {};
 
-    const rTS2  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS2).length;
-    const rTS1  = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS1).length;
-    const rTS   = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS).length;
+    // "Pengguna Lulusan" datanya ada di ts_employer (form Atasan Langsung),
+    // bukan di ts_stakeholder — sehingga harus dibaca dari _em
+    const isPL = j === 'Pengguna Lulusan';
+
+    // Untuk Pengguna Lulusan: tidak ada kolom tahun_survei di ts_employer,
+    // semua responden dianggap masuk di tahun TS saat ini
+    const rTS2  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS2).length;
+    const rTS1  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS1).length;
+    const rTS   = isPL ? _em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS).length;
 
     const popTS2 = parseInt(c.popTS2 || 0);
     const popTS1 = parseInt(c.popTS1 || 0);
@@ -398,8 +407,12 @@ function render27CTable(sk) {
 
     const pct = (r, p) => (p > 0 ? Math.round(r / p * 100) + '%' : '–');
 
-    const grpTS = sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS);
-    const keys  = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+    // Untuk Pengguna Lulusan: gunakan kunci rtg_er1..7 dari ts_employer
+    const keys = isPL
+      ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
+      : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+
+    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS);
     const cnt   = { SB:0, B:0, C:0, K:0 };
     grpTS.forEach(x => {
       const vals = keys.map(k => x[k]).filter(Boolean);
@@ -409,7 +422,7 @@ function render27CTable(sk) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    const allGrp = sk.filter(x => x.jenis === j);
+    const allGrp = isPL ? _em : sk.filter(x => x.jenis === j);
     let skor = '–';
     if (allGrp.length) {
       const tot = allGrp.reduce((s, x) => {
