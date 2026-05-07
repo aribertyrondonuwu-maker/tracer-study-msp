@@ -61,7 +61,15 @@ async function getData() {
     db.from(TBL_EMPLOYER).select('*').order('created_at', { ascending: false }),
     db.from(TBL_STAKEHOLDER).select('*').order('created_at', { ascending: false }),
   ]);
-  _cache = { al: al || [], em: em || [], sk: sk || [], ts: Date.now() };
+
+  // ── Normalisasi: pastikan tahun_survei selalu integer & jenis selalu string trim
+  const normSk = (sk || []).map(x => ({
+    ...x,
+    tahun_survei : x.tahun_survei != null ? parseInt(x.tahun_survei) : null,
+    jenis        : (x.jenis || '').trim(),
+  }));
+
+  _cache = { al: al || [], em: em || [], sk: normSk, ts: Date.now() };
   return _cache;
 }
 
@@ -244,19 +252,45 @@ async function renderLAM() {
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>📊 Tabel 2.8B2 — Tempat Kerja / Berwirausaha (${al.length} responden)</strong>
+    <span style="font-size:11px;color:var(--g500);margin-left:6px">Per tahun lulus (TS-4, TS-3, TS-2)</span>
   </div>
-  <div class="tw">
-    <table class="dt">
-      <thead><tr><th>Tingkat Tempat Kerja</th><th>Jumlah</th><th>Persentase</th></tr></thead>
-      <tbody>
-        <tr><td>Lokal / Wilayah / Wirausaha tidak berizin</td><td>${levelCat.lokal}</td><td>${Math.round(levelCat.lokal/al.length*100||0)}%</td></tr>
-        <tr><td>Nasional / Berbadan Hukum</td><td>${levelCat.nasional}</td><td>${Math.round(levelCat.nasional/al.length*100||0)}%</td></tr>
-        <tr><td>Multinasional / Internasional</td><td>${levelCat.multinasional}</td><td>${Math.round(levelCat.multinasional/al.length*100||0)}%</td></tr>
-      </tbody>
-    </table>
+  <div class="tw" style="overflow-x:auto">
+    ${(() => {
+      const { rows: r28, tot: t28 } = build28B2Data(al);
+      const mkR = (r, bold) => `<tr${bold?' style="font-weight:700;background:var(--g50)"':''}>
+        <td style="text-align:center">${r.label}</td>
+        <td style="text-align:center">${r.jumlah||0}</td>
+        <td style="text-align:center">${r.terlacak||0}</td>
+        <td style="text-align:center;background:#fffde7">${r.lok||0}</td>
+        <td style="text-align:center;background:#fffde7">${r.nas||0}</td>
+        <td style="text-align:center;background:#fffde7">${r.mul||0}</td>
+      </tr>`;
+      return `<table class="dt" style="min-width:580px">
+        <thead>
+          <tr>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah<br>Lulusan</th>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan<br>yang Terlacak</th>
+            <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak yang Bekerja Berdasarkan<br>Tingkat/Ukuran Tempat Kerja/Berwirausaha</th>
+          </tr>
+          <tr>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Lokal/Wilayah/<br>Berwirausaha tidak<br>Berbadan Hukum</th>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Nasional/<br>Berwirausaha<br>Berbadan Hukum</th>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Multinasional/<br>Internasional</th>
+          </tr>
+          <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${r28.map(r=>mkR(r,false)).join('')}
+          ${mkR({label:'Jumlah',...t28},true)}
+        </tbody>
+      </table>`;
+    })()}
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
-    <strong>📊 Tabel 2.7C — Kepuasan Stakeholder Internal & Eksternal (${_cache.sk?.length||0} responden)</strong>
+    <strong>📊 Tabel 2.7C — Kepuasan Stakeholder Internal &amp; Eksternal (${_cache.sk?.length||0} responden)</strong>
   </div>
   <div class="tw">
     ${render27CTable(_cache.sk||[], _cache.em||[])}
@@ -352,21 +386,93 @@ function renderLAM28B1(al) {
     </tbody></table></div>`;
 }
 
-function renderLAM28B2(al) {
-  const el  = document.getElementById('sec-28b2');
-  if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
-  const lok = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length;
-  const nas = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length;
-  const mul = al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length;
-  const tot = al.length||1;
-  el.innerHTML = `<div class="tw"><table class="dt">
-    <thead><tr><th>Tingkat</th><th>Jumlah</th><th>%</th></tr></thead>
-    <tbody>
-      <tr><td>Lokal/Wilayah/Wirausaha</td><td>${lok}</td><td>${Math.round(lok/tot*100)}%</td></tr>
-      <tr><td>Nasional/Berbadan Hukum</td><td>${nas}</td><td>${Math.round(nas/tot*100)}%</td></tr>
-      <tr><td>Multinasional/Internasional</td><td>${mul}</td><td>${Math.round(mul/tot*100)}%</td></tr>
-    </tbody></table></div>`;
+// ── Helper: hitung data 2.8B2 per tahun lulus (TS-4, TS-3, TS-2)
+function build28B2Data(al) {
+  const TS  = TAHUN_SURVEI.TS;   // 2025
+  const TS1 = TAHUN_SURVEI.TS_1; // 2024
+  const TS2 = TAHUN_SURVEI.TS_2; // 2023
+  const TS4 = TS - 4;            // 2021
+  const TS3 = TS - 3;            // 2022
+
+  // Hanya alumni bekerja yang punya level_kerja
+  const isLok = a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal');
+  const isNas = a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional');
+  const isMul = a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'));
+
+  // Kelompokkan per tahun lulus
+  const TAHUN_ROWS = [
+    { label: `TS-4 (${TS4})`, yr: TS4 },
+    { label: `TS-3 (${TS3})`, yr: TS3 },
+    { label: `TS-2 (${TS2})`, yr: TS2 },
+  ];
+
+  const rows = TAHUN_ROWS.map(({ label, yr }) => {
+    const grp      = al.filter(a => parseInt(a.lulus) === yr);
+    const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    return {
+      label,
+      jumlah   : grp.length,
+      terlacak : terlacak.length,
+      lok      : terlacak.filter(isLok).length,
+      nas      : terlacak.filter(isNas).length,
+      mul      : terlacak.filter(isMul).length,
+    };
+  });
+
+  // Baris Jumlah
+  const tot = {
+    jumlah  : rows.reduce((s,r) => s+r.jumlah, 0),
+    terlacak: rows.reduce((s,r) => s+r.terlacak, 0),
+    lok     : rows.reduce((s,r) => s+r.lok, 0),
+    nas     : rows.reduce((s,r) => s+r.nas, 0),
+    mul     : rows.reduce((s,r) => s+r.mul, 0),
+  };
+  return { rows, tot };
 }
+
+function renderLAM28B2(al) {
+  const el = document.getElementById('sec-28b2');
+  if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
+
+  const { rows, tot } = build28B2Data(al);
+
+  const mkRow = (r, isTot=false) => `
+    <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
+      <td style="text-align:center${isTot?';font-weight:700':''}">${r.label}</td>
+      <td style="text-align:center">${r.jumlah || 0}</td>
+      <td style="text-align:center">${r.terlacak || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.lok || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.nas || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.mul || 0}</td>
+    </tr>`;
+
+  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:600px">
+    <thead>
+      <tr>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan yang Terlacak</th>
+        <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak yang Bekerja Berdasarkan<br>Tingkat/Ukuran Tempat Kerja/Berwirausaha</th>
+      </tr>
+      <tr>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Lokal/Wilayah/<br>Berwirausaha tidak<br>Berbadan Hukum</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Nasional/<br>Berwirausaha<br>Berbadan Hukum</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00;font-size:11px">Multinasional/<br>Internasional</th>
+      </tr>
+      <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => mkRow(r)).join('')}
+      ${mkRow({ label:'Jumlah', ...tot }, true)}
+    </tbody>
+  </table>
+  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
+    * TS = Tahun Survei (${TAHUN_SURVEI.TS}). Hanya mencakup alumni 3 tahun terakhir sesuai format LKPS LAM PTIP IAPS 1.0.
+  </p></div>`;
+}
+
 
 function renderRTL(al, em) {
   const avg7   = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
@@ -480,15 +586,14 @@ function render27CTable(sk, em) {
     const jKey  = j.replace(/\s+/g,'_');
     const c     = cfg[jKey] || {};
 
-    // "Pengguna Lulusan" datanya ada di ts_employer (form Atasan Langsung),
-    // bukan di ts_stakeholder — sehingga harus dibaca dari _em
+    // "Pengguna Lulusan" datanya ada di ts_employer
     const isPL = j === 'Pengguna Lulusan';
 
-    // Untuk Pengguna Lulusan: tidak ada kolom tahun_survei di ts_employer,
-    // semua responden dianggap masuk di tahun TS saat ini
-    const rTS2  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS2).length;
-    const rTS1  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS1).length;
-    const rTS   = isPL ? _em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS).length;
+    // Filter aman: parseInt untuk tahun, trim untuk jenis
+    const skByJenis = isPL ? [] : sk.filter(x => x.jenis === j);
+    const rTS2 = isPL ? 0 : skByJenis.filter(x => parseInt(x.tahun_survei) === TAHUN.TS2).length;
+    const rTS1 = isPL ? 0 : skByJenis.filter(x => parseInt(x.tahun_survei) === TAHUN.TS1).length;
+    const rTS  = isPL ? _em.length : skByJenis.filter(x => parseInt(x.tahun_survei) === TAHUN.TS).length;
 
     const popTS2 = parseInt(c.popTS2 || 0);
     const popTS1 = parseInt(c.popTS1 || 0);
@@ -501,7 +606,7 @@ function render27CTable(sk, em) {
       ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
       : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
 
-    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN.TS);
+    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS);
     const cnt   = { SB:0, B:0, C:0, K:0 };
     grpTS.forEach(x => {
       const vals = keys.map(k => x[k]).filter(Boolean);
@@ -650,40 +755,26 @@ async function renderTableStakeholder() {
 //  RENDER PANEL EXPORT EXCEL — tampilkan statistik live
 // ════════════════════════════════════════════════════════
 async function renderExcelPanel() {
-  // Panel HTML sudah ada di index.html (ap-excel), cukup tampilkan
-  // dan update badge jumlah data secara live
   const panel = document.getElementById('ap-excel');
   if (!panel) return;
 
-  // Tampilkan badge jumlah record secara async
   try {
     const { al, em, sk } = await getData();
-    // Inject badge jumlah data ke tombol-tombol ekspor per kategori
-    const updateBadge = (btnSelector, count, label) => {
-      const btns = panel.querySelectorAll(btnSelector);
-      btns.forEach(b => {
-        if (!b.querySelector('.xl-badge')) {
-          const badge = document.createElement('span');
-          badge.className = 'xl-badge';
-          badge.style.cssText = 'background:var(--teal);color:#fff;font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:4px';
-          badge.textContent = `${count} ${label}`;
-          b.appendChild(badge);
-        }
-      });
-    };
-    // Update info summary di panel
+
+    // ── Badge jumlah data live
     let infoEl = document.getElementById('excel-panel-stats');
     if (!infoEl) {
       infoEl = document.createElement('div');
       infoEl.id = 'excel-panel-stats';
       infoEl.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:0 28px 20px;';
-      panel.querySelector('.cc')?.after(infoEl);
+      const firstCC = panel.querySelector('.cc');
+      if (firstCC) firstCC.after(infoEl);
     }
     infoEl.innerHTML = [
-      { icon:'👨‍🎓', label:'Alumni', count: al.length, color:'#1B7A4A', bg:'#F0FDF4' },
-      { icon:'🏢', label:'Pengguna Lulusan', count: em.length, color:'#2563EB', bg:'#EFF6FF' },
-      { icon:'🤝', label:'Stakeholder', count: sk.length, color:'#B45309', bg:'#FFFBEB' },
-      { icon:'📝', label:'Total Responden', count: al.length+em.length+sk.length, color:'var(--navy)', bg:'var(--g50)' },
+      { icon:'👨‍🎓', label:'Alumni',           count: al.length,                color:'#1B7A4A', bg:'#F0FDF4' },
+      { icon:'🏢',   label:'Pengguna Lulusan', count: em.length,                color:'#2563EB', bg:'#EFF6FF' },
+      { icon:'🤝',   label:'Stakeholder',      count: sk.length,                color:'#B45309', bg:'#FFFBEB' },
+      { icon:'📝',   label:'Total Responden',  count: al.length+em.length+sk.length, color:'var(--navy)', bg:'var(--g50)' },
     ].map(d => `
       <div style="background:${d.bg};border:1px solid ${d.color}33;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;min-width:150px">
         <span style="font-size:18px">${d.icon}</span>
@@ -692,6 +783,58 @@ async function renderExcelPanel() {
           <div style="font-size:10.5px;color:var(--g500);font-weight:500">${d.label}</div>
         </div>
       </div>`).join('');
+
+    // ── Tabel debug distribusi Stakeholder (jenis × tahun_survei)
+    let dbgEl = document.getElementById('excel-debug-sk');
+    if (!dbgEl) {
+      dbgEl = document.createElement('div');
+      dbgEl.id = 'excel-debug-sk';
+      dbgEl.style.cssText = 'margin:0 28px 20px;';
+      infoEl.after(dbgEl);
+    }
+    if (sk.length) {
+      // Hitung distribusi per jenis + per tahun
+      const dist = {};
+      const tahunSet = new Set();
+      sk.forEach(x => {
+        const j = (x.jenis||'(kosong)').trim();
+        const t = x.tahun_survei != null ? parseInt(x.tahun_survei) : '(null)';
+        tahunSet.add(t);
+        if (!dist[j]) dist[j] = {};
+        dist[j][t] = (dist[j][t] || 0) + 1;
+      });
+      const tahuns = [...tahunSet].sort();
+      dbgEl.innerHTML = `
+        <details style="background:var(--g50);border:1px solid var(--g200);border-radius:8px;padding:12px 16px">
+          <summary style="font-size:12px;font-weight:700;color:var(--navy);cursor:pointer">
+            🔍 Debug: Distribusi Data Stakeholder (${sk.length} records) — klik untuk lihat
+          </summary>
+          <div style="margin-top:12px;overflow-x:auto">
+            <table style="border-collapse:collapse;font-size:12px;width:auto">
+              <thead>
+                <tr style="background:var(--navy);color:#fff">
+                  <th style="padding:6px 12px;text-align:left">Jenis Stakeholder</th>
+                  ${tahuns.map(t=>`<th style="padding:6px 12px;text-align:center">Tahun ${t}</th>`).join('')}
+                  <th style="padding:6px 12px;text-align:center">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(dist).map(([j,tv])=>`
+                  <tr style="border-bottom:1px solid var(--g100)">
+                    <td style="padding:5px 12px;font-weight:600">${j}</td>
+                    ${tahuns.map(t=>`<td style="padding:5px 12px;text-align:center">${tv[t]||0}</td>`).join('')}
+                    <td style="padding:5px 12px;text-align:center;font-weight:700">${Object.values(tv).reduce((a,b)=>a+b,0)}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+            <p style="font-size:11px;color:var(--g500);margin-top:8px">
+              ⚠️ Pastikan nilai <strong>jenis</strong> di database sesuai persis dengan: Mahasiswa, Dosen, Tenaga Kependidikan, Mitra, Lulusan, Pengguna Lulusan, Lainnya
+            </p>
+          </div>
+        </details>`;
+    } else {
+      dbgEl.innerHTML = '';
+    }
   } catch (e) {
     console.warn('[renderExcelPanel]', e);
   }
@@ -1327,9 +1470,9 @@ export async function exportExcel() {
         const jKey  = j.replace(/\s+/g,'_');
         const c     = cfg27c[jKey] || {};
 
-        const rTS2  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_2).length;
-        const rTS1  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_1).length;
-        const rTS   = isPL ? em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS).length;
+        const rTS2  = isPL ? 0 : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN_SURVEI.TS_2).length;
+        const rTS1  = isPL ? 0 : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN_SURVEI.TS_1).length;
+        const rTS   = isPL ? em.length : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN_SURVEI.TS).length;
 
         const popTS2 = parseInt(c.popTS2 || 0);
         const popTS1 = parseInt(c.popTS1 || 0);
@@ -1342,7 +1485,7 @@ export async function exportExcel() {
         const keys  = isPL
           ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
           : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
-        const grpTS = isPL ? em : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS);
+        const grpTS = isPL ? em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN_SURVEI.TS);
         const cnt   = { SB:0, B:0, C:0, K:0 };
         grpTS.forEach(x => {
           const vals = keys.map(k => x[k]).filter(Boolean);
@@ -1404,26 +1547,26 @@ export async function exportExcel() {
       XLSX.utils.book_append_sheet(wb, ws28b1, '2.8B1 Waktu Tunggu');
     }
 
-    // ── SHEET 8: TABEL 2.8B2 — TINGKAT TEMPAT KERJA ──────
+    // ── SHEET 8: TABEL 2.8B2 — TINGKAT TEMPAT KERJA (per tahun lulus) ──
     {
-      const lok = al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal')).length;
-      const nas = al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional')).length;
-      const mul = al.filter(a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'))).length;
-      const tot = al.length || 1;
+      const { rows: r28, tot: t28 } = build28B2Data(al);
       const header28b2 = [
-        ['TABEL 2.8B2 — TEMPAT KERJA / BERWIRAUSAHA (LAM PTIP IAPS 1.0)', '', '', ''],
-        [`Program Studi MSP FPIK UNSRAT · Total Alumni: ${al.length} · Dicetak: ${tgl}`, '', '', ''],
-        ['', '', '', ''],
-        ['Tingkat Tempat Kerja', 'Jumlah', 'Persentase', 'Keterangan'],
+        ['TABEL 2.8B2 — TEMPAT KERJA / BERWIRAUSAHA (LAM PTIP IAPS 1.0)', '', '', '', '', ''],
+        ['Diisi oleh pengusul status Terakreditasi UNGGUL pada program Diploma Tiga/Sarjana/Sarjana Terapan/Sarjana PJJ', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', '', '', ''],
+        ['', '', '', '', '', ''],
+        ['Tahun Lulus', 'Jumlah Lulusan', 'Jumlah Lulusan yang Terlacak',
+         'Lokal/Wilayah/Berwirausaha tidak Berbadan Hukum',
+         'Nasional/Berwirausaha Berbadan Hukum',
+         'Multinasional/Internasional'],
+        ['1', '2', '3', '4', '5', '6'],
       ];
       const rows28b2 = [
-        ['Lokal/Wilayah/Wirausaha tidak berizin', lok, `${Math.round(lok/tot*100)}%`, 'Cakupan lokal atau usaha mandiri tanpa badan hukum'],
-        ['Nasional/Berbadan Hukum', nas, `${Math.round(nas/tot*100)}%`, 'Perusahaan/instansi nasional berbadan hukum'],
-        ['Multinasional/Internasional', mul, `${Math.round(mul/tot*100)}%`, 'Perusahaan lintas negara atau lembaga internasional'],
-        ['TOTAL', lok+nas+mul, '100%', ''],
+        ...r28.map(r => [r.label, r.jumlah||0, r.terlacak||0, r.lok||0, r.nas||0, r.mul||0]),
+        ['Jumlah', t28.jumlah||0, t28.terlacak||0, t28.lok||0, t28.nas||0, t28.mul||0],
       ];
       const ws28b2 = XLSX.utils.aoa_to_sheet([...header28b2, ...rows28b2]);
-      ws28b2['!cols'] = [{wch:40},{wch:10},{wch:12},{wch:48}];
+      ws28b2['!cols'] = [{wch:14},{wch:16},{wch:22},{wch:36},{wch:32},{wch:22}];
       XLSX.utils.book_append_sheet(wb, ws28b2, '2.8B2 Tempat Kerja');
     }
 
