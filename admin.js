@@ -695,18 +695,63 @@ function render27CTable(sk, em) {
     </tr>`;
   }).join('');
 
+  // ── Baris Jumlah
+  const totalTS2 = JENIS_LIST.reduce((s,j) => {
+    if (j === 'Pengguna Lulusan') return s;
+    return s + sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS2).length;
+  }, 0);
+  const totalTS1 = JENIS_LIST.reduce((s,j) => {
+    if (j === 'Pengguna Lulusan') return s;
+    return s + sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS1).length;
+  }, 0);
+  const totalTS = JENIS_LIST.reduce((s,j) => {
+    if (j === 'Pengguna Lulusan') return s + _em.length;
+    return s + sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS).length;
+  }, 0);
+  const grandTotal = totalTS2 + totalTS1 + totalTS;
+
+  // Deteksi data yang tidak terhitung (jenis tidak cocok)
+  const skTerhitung = sk.filter(x => JENIS_LIST.includes((x.jenis||'').trim())).length;
+  const skTidakTerhitung = sk.length - skTerhitung;
+  const jenisTidakDikenal = [...new Set(
+    sk.filter(x => !JENIS_LIST.includes((x.jenis||'').trim())).map(x => x.jenis||'(kosong)')
+  )];
+
+  const jumlahRow = `<tr style="background:var(--g50);font-weight:700;border-top:2px solid var(--navy)">
+    <td colspan="2" style="text-align:center;padding:8px">Jumlah</td>
+    <td colspan="2"></td>
+    <td style="text-align:center">${totalTS2}</td>
+    <td style="text-align:center">${totalTS1}</td>
+    <td style="text-align:center">${totalTS}</td>
+    <td colspan="3"></td>
+    <td colspan="4"></td>
+    <td style="text-align:center;font-weight:700">${grandTotal}</td>
+    <td></td>
+  </tr>`;
+
+  const warningHtml = skTidakTerhitung > 0 ? `
+    <div class="info-box" style="margin-top:10px;background:#fff3cd;border-color:#ffc107;color:#856404;font-size:12px">
+      ⚠️ <strong>${skTidakTerhitung} data stakeholder tidak terhitung</strong> karena nilai kolom <code>jenis</code>
+      tidak cocok dengan daftar kategori LKPS.<br>
+      Nilai tidak dikenal: <strong>${jenisTidakDikenal.map(j=>`"${j}"`).join(', ')}</strong><br>
+      <span style="font-size:11px">Perbaiki nilai <code>jenis</code> di Supabase agar sesuai dengan:
+      Mahasiswa, Dosen, Tenaga Kependidikan, Mitra, Lulusan, Pengguna Lulusan, Lainnya</span>
+    </div>` : '';
+
   const keterangan = `<p style="font-size:11px;color:var(--g500);margin-top:10px;font-style:italic">
     <strong>Keterangan:</strong> Skala penilaian responden: SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, K (Kurang) = 1.
     Skor akhir dikonversi ke skala 1–4 sesuai panduan LAM PTIP IAPS 1.0.<br>
+    Total terdata: <strong>${sk.length} stakeholder + ${_em.length} pengguna lulusan</strong> = ${sk.length + _em.length} responden.
     ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis di browser.</span>':''}
   </p>`;
 
   return `<div class="tw" style="overflow-x:auto">
     <table class="dt" style="min-width:900px;font-size:12px">
       ${headerRow}
-      <tbody>${rows}</tbody>
+      <tbody>${rows}${jumlahRow}</tbody>
     </table>
     ${keterangan}
+    ${warningHtml}
   </div>`;
 }
 
@@ -1512,7 +1557,20 @@ export async function exportExcel() {
           c.tindak || '',
         ];
       });
-      const ws27c = XLSX.utils.aoa_to_sheet([...header27c, ...rows27c]);
+      const jumlahRow27c = (() => {
+        const totTS2 = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS_2).length, 0);
+        const totTS1 = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS_1).length, 0);
+        const totTS  = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s+em.length:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS).length, 0);
+        return ['Jumlah', '', '', '', totTS2, totTS1, totTS, '', '', '', '', '', '', '', '', ''];
+      })();
+
+      // Warning baris data tidak terhitung
+      const skTdk = sk.filter(x => !JENIS_LIST_27C.includes((x.jenis||'').trim()));
+      const warningRow27c = skTdk.length > 0
+        ? [[''], [`⚠️ ${skTdk.length} data stakeholder tidak terhitung (nilai jenis tidak cocok): ${[...new Set(skTdk.map(x=>x.jenis||'(kosong)'))].join(', ')}`]]
+        : [];
+
+      const ws27c = XLSX.utils.aoa_to_sheet([...header27c, ...rows27c, jumlahRow27c, ...warningRow27c]);
       ws27c['!cols'] = [
         {wch:4},{wch:22},
         {wch:10},{wch:12},
