@@ -63,11 +63,22 @@ async function getData() {
   ]);
 
   // ── Normalisasi: pastikan tahun_survei selalu integer & jenis selalu string trim
-  const normSk = (sk || []).map(x => ({
-    ...x,
-    tahun_survei : x.tahun_survei != null ? parseInt(x.tahun_survei) : null,
-    jenis        : (x.jenis || '').trim(),
-  }));
+  // Map nilai lama (dengan "Aktif") ke nama resmi LKPS
+  const JENIS_NORM = {
+    'Mahasiswa Aktif'           : 'Mahasiswa',
+    'Dosen Aktif'               : 'Dosen',
+    'Tenaga Kependidikan Aktif' : 'Tenaga Kependidikan',
+    'Lulusan / Alumni'          : 'Lulusan',
+    'Mitra / Instansi Mitra'    : 'Mitra',
+  };
+  const normSk = (sk || []).map(x => {
+    const jRaw = (x.jenis || '').trim();
+    return {
+      ...x,
+      tahun_survei : x.tahun_survei != null ? parseInt(x.tahun_survei) : null,
+      jenis        : JENIS_NORM[jRaw] || jRaw,
+    };
+  });
 
   _cache = { al: al || [], em: em || [], sk: normSk, ts: Date.now() };
   return _cache;
