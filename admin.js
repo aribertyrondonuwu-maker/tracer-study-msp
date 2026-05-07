@@ -1281,7 +1281,7 @@ export async function exportExcel() {
       const rows28b2 = [
         ['Lokal/Wilayah/Wirausaha tidak berizin', lok, `${Math.round(lok/tot*100)}%`, 'Cakupan lokal atau usaha mandiri tanpa badan hukum'],
         ['Nasional/Berbadan Hukum', nas, `${Math.round(nas/tot*100)}%`, 'Perusahaan/instansi nasional berbadan hukum'],
-        ['Multinasional/Internasional', mul, `${Math.round(mul/tot*100)}%', 'Perusahaan lintas negara atau lembaga internasional'],
+        ['Multinasional/Internasional', mul, `${Math.round(mul/tot*100)}%`, 'Perusahaan lintas negara atau lembaga internasional'],
         ['TOTAL', lok+nas+mul, '100%', ''],
       ];
       const ws28b2 = XLSX.utils.aoa_to_sheet([...header28b2, ...rows28b2]);
