@@ -22,7 +22,7 @@ export const ROLE = {
 //    superadmin → semua tab
 //    admin      → hanya analisis
 export const TAB_ACCESS = {
-  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','sk','usr'],
+  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','sk','excel','usr'],
   [ROLE.ADMIN]      : ['analisis'],
 };
 

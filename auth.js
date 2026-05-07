@@ -57,7 +57,7 @@ export function applyRoleUI() {
   if (!_currentUser) return;
 
   const allowedTabs = TAB_ACCESS[_currentUser.role] || [];
-  const allTabs     = ['ov','lam','analisis','al','em','usr'];
+  const allTabs     = ['ov','lam','analisis','al','em','sk','excel','usr'];
 
   // Sembunyikan / tampilkan tab sesuai role
   allTabs.forEach(tabId => {

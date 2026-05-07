@@ -42,6 +42,7 @@ export function admTab(tabId) {
     case 'al':       return renderTableAlumni();
     case 'em':       return renderTableEmployer();
     case 'sk':       return renderTableStakeholder();
+    case 'excel':    return renderExcelPanel();
     case 'usr':      return isSuperAdmin() ? loadAdmins() : null;
   }
 }
@@ -557,6 +558,57 @@ async function renderTableStakeholder() {
     : '<tr><td colspan="15"><div class="empty">Belum ada data stakeholder.</div></td></tr>';
 }
 
+// ════════════════════════════════════════════════════════
+//  RENDER PANEL EXPORT EXCEL — tampilkan statistik live
+// ════════════════════════════════════════════════════════
+async function renderExcelPanel() {
+  // Panel HTML sudah ada di index.html (ap-excel), cukup tampilkan
+  // dan update badge jumlah data secara live
+  const panel = document.getElementById('ap-excel');
+  if (!panel) return;
+
+  // Tampilkan badge jumlah record secara async
+  try {
+    const { al, em, sk } = await getData();
+    // Inject badge jumlah data ke tombol-tombol ekspor per kategori
+    const updateBadge = (btnSelector, count, label) => {
+      const btns = panel.querySelectorAll(btnSelector);
+      btns.forEach(b => {
+        if (!b.querySelector('.xl-badge')) {
+          const badge = document.createElement('span');
+          badge.className = 'xl-badge';
+          badge.style.cssText = 'background:var(--teal);color:#fff;font-size:9px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:4px';
+          badge.textContent = `${count} ${label}`;
+          b.appendChild(badge);
+        }
+      });
+    };
+    // Update info summary di panel
+    let infoEl = document.getElementById('excel-panel-stats');
+    if (!infoEl) {
+      infoEl = document.createElement('div');
+      infoEl.id = 'excel-panel-stats';
+      infoEl.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:0 28px 20px;';
+      panel.querySelector('.cc')?.after(infoEl);
+    }
+    infoEl.innerHTML = [
+      { icon:'👨‍🎓', label:'Alumni', count: al.length, color:'#1B7A4A', bg:'#F0FDF4' },
+      { icon:'🏢', label:'Pengguna Lulusan', count: em.length, color:'#2563EB', bg:'#EFF6FF' },
+      { icon:'🤝', label:'Stakeholder', count: sk.length, color:'#B45309', bg:'#FFFBEB' },
+      { icon:'📝', label:'Total Responden', count: al.length+em.length+sk.length, color:'var(--navy)', bg:'var(--g50)' },
+    ].map(d => `
+      <div style="background:${d.bg};border:1px solid ${d.color}33;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;min-width:150px">
+        <span style="font-size:18px">${d.icon}</span>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:${d.color}">${d.count}</div>
+          <div style="font-size:10.5px;color:var(--g500);font-weight:500">${d.label}</div>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    console.warn('[renderExcelPanel]', e);
+  }
+}
+
 window._deleteRow = async function(table, id) {
   if (!isSuperAdmin()) return alert('Akses ditolak.');
   if (!confirm('Yakin hapus data ini?')) return;
@@ -913,116 +965,388 @@ export async function exportCSV(type) {
 }
 
 // ════════════════════════════════════════════════════════
-//  EXPORT EXCEL (.xlsx) — menggunakan SheetJS CDN
+//  EXPORT EXCEL (.xlsx) — Komprehensif Multi-Sheet
+//  Sheet: Ringkasan | Data Alumni | Pengguna Lulusan |
+//         Stakeholder | Tabel 2.7B | 2.7C | 2.8B1 | 2.8B2
 // ════════════════════════════════════════════════════════
+
+// ── Helper: load SheetJS sekali
+async function _loadXLSX() {
+  if (window.XLSX) return window.XLSX;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return window.XLSX;
+}
+
+// ── Helper: set style pada range (header row)
+function _styleHeader(ws, range, fillHex) {
+  const XLSX = window.XLSX;
+  if (!XLSX || !ws['!cols']) return;
+  // SheetJS CE tidak mendukung style — fungsi ini disiapkan untuk SheetJS Pro / xlsx-style
+  // Cukup set column widths saja
+}
+
+// ── Helper: set lebar kolom otomatis berdasarkan data
+function _autoColWidth(ws, data, headers) {
+  const colWidths = headers.map(h => {
+    const maxData = Math.max(...data.map(row => String(row[h] || '').length));
+    return Math.min(Math.max(h.length, maxData) + 2, 45);
+  });
+  ws['!cols'] = colWidths.map(w => ({ wch: w }));
+}
+
+// ── Fungsi export utama — semua data dalam satu workbook
 export async function exportExcel() {
   if (!isSuperAdmin()) return alert('Akses ditolak. Hanya superadmin.');
-  const { al, em } = await getData();
-  if (!al.length && !em.length) return alert('Belum ada data.');
 
-  if (!window.XLSX) {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  // Tampilkan progress di tombol
+  const btn = document.getElementById('btn-export-excel-all');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Menyiapkan Excel...'; }
+
+  try {
+    const XLSX = await _loadXLSX();
+    const { al, em, sk } = await getData();
+
+    if (!al.length && !em.length && !sk.length) {
+      alert('Belum ada data untuk diekspor.');
+      return;
+    }
+
+    const wb  = XLSX.utils.book_new();
+    const tgl = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+    const tglFile = new Date().toISOString().slice(0, 10);
+
+    // ── SHEET 1: RINGKASAN EKSEKUTIF ──────────────────────
+    const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
+    const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
+    const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
+    const pctRelevan = bekerja ? Math.round(relevan / bekerja * 100) : 0;
+    const lt6Al      = al.filter(a => a.tunggu && (a.tunggu.includes('<') || a.tunggu.includes('Kurang dari 6'))).length;
+    const pctLt6     = al.length ? Math.round(lt6Al / al.length * 100) : 0;
+    const avg7Em     = (() => {
+      const keys = ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7'];
+      if (!em.length) return '–';
+      const tot = em.reduce((s,r) => s + keys.reduce((ss,k) => ss + (r[k]||0), 0), 0);
+      return (tot / (em.length * keys.length)).toFixed(2);
+    })();
+    const avgProdi   = (() => {
+      const keys = ['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7'];
+      if (!al.length) return '–';
+      const tot = al.reduce((s,r) => s + keys.reduce((ss,k) => ss + (r[k]||0), 0), 0);
+      return (tot / (al.length * keys.length)).toFixed(2);
+    })();
+    const avgSk      = (() => {
+      const keys = ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+      if (!sk.length) return '–';
+      const tot = sk.reduce((s,r) => s + keys.reduce((ss,k) => ss + (r[k]||0), 0), 0);
+      return (tot / (sk.length * keys.length)).toFixed(2);
+    })();
+
+    const summaryData = [
+      ['LAPORAN TRACER STUDY — RINGKASAN EKSEKUTIF', ''],
+      ['Program Studi Manajemen Sumber Daya Perairan (MSP)', ''],
+      ['Fakultas Perikanan dan Ilmu Kelautan · UNSRAT Manado', ''],
+      [`Dicetak: ${tgl}`, ''],
+      ['', ''],
+      ['INDIKATOR', 'NILAI'],
+      ['Total Responden Alumni', al.length],
+      ['Total Responden Pengguna Lulusan (Atasan Langsung)', em.length],
+      ['Total Responden Stakeholder', sk.length],
+      ['', ''],
+      ['INDIKATOR LAM PTIP', 'HASIL'],
+      ['% Lulusan Bekerja / Berwirausaha', `${pctKerja}%`],
+      ['% Kesesuaian Bidang Kerja (Erat + Sangat Erat)', `${pctRelevan}%`],
+      ['% Lulusan dengan Waktu Tunggu < 6 Bulan (WT1)', `${pctLt6}%`],
+      ['Rata-rata 7 Aspek Kepuasan Pengguna Lulusan (Tabel 2.7B)', `${avg7Em} / 4`],
+      ['Rata-rata Penilaian Prodi oleh Alumni', `${avgProdi} / 4`],
+      ['Rata-rata Kepuasan Stakeholder (Tabel 2.7C)', `${avgSk} / 4`],
+      ['', ''],
+      ['DISTRIBUSI STATUS PEKERJAAN ALUMNI', 'JUMLAH'],
+      ...Object.entries((() => {
+        const m = {}; al.forEach(a => { const v = a.status||'Tidak diisi'; m[v] = (m[v]||0)+1; }); return m;
+      })()).map(([k, v]) => [k, v]),
+      ['', ''],
+      ['DISTRIBUSI BIDANG PEKERJAAN (Top 10)', 'JUMLAH'],
+      ...Object.entries((() => {
+        const m = {}; al.forEach(a => { const v = (a.bidang||'Tidak diisi').split('(')[0].trim(); m[v]=(m[v]||0)+1; }); return m;
+      })()).sort((a,b) => b[1]-a[1]).slice(0, 10).map(([k, v]) => [k, v]),
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary['!cols'] = [{ wch: 55 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, '📊 Ringkasan');
+
+    // ── SHEET 2: DATA ALUMNI LENGKAP ──────────────────────
+    if (al.length) {
+      const headersAl = [
+        'No','Nama','NIM','Thn Masuk','Thn Lulus','Email','No. HP','Gender','IPK',
+        'Judul Skripsi','Status Pekerjaan','Waktu Tunggu','Instansi/Perusahaan',
+        'Jabatan','Kota','Bidang/Sektor','Level Tempat Kerja','Gaji/Penghasilan',
+        'Kesesuaian Bidang','Sumber Informasi Kerja','Kompetensi Perlu Ditingkatkan',
+        'Rekomendasi Prodi',
+        'AR1 - Kurikulum','AR2 - Pengajaran','AR3 - Bimbingan',
+        'AR4 - Lab Perairan','AR5 - Sarana Kampus','AR6 - PKL/Lapangan','AR7 - Adm Akademik',
+        'Metode Pembelajaran','Saran Kurikulum','Saran Fasilitas','Pesan',
+        'Tanggal Isi',
+      ];
+      const rowsAl = al.map((a, i) => [
+        i+1, a.nama||'', a.nim||'', a.masuk||'', a.lulus||'',
+        a.email||'', a.hp||'', a.gender||'', a.ipk||'', a.judul||'',
+        a.status||'', a.tunggu||'', a.instansi||'', a.jabatan||'', a.kota||'',
+        a.bidang||'', a.level_kerja||'', a.gaji||'', a.kesesuaian||'',
+        a.sumber||'', a.kompetensi||'', a.rekomendasi||'',
+        a.rtg_ar1||'', a.rtg_ar2||'', a.rtg_ar3||'', a.rtg_ar4||'',
+        a.rtg_ar5||'', a.rtg_ar6||'', a.rtg_ar7||'',
+        a.metode||'', a.saran_kur||'', a.saran_fas||'', a.pesan||'',
+        new Date(a.created_at).toLocaleString('id-ID'),
+      ]);
+      const wsAl = XLSX.utils.aoa_to_sheet([headersAl, ...rowsAl]);
+      wsAl['!cols'] = headersAl.map((h, i) => ({
+        wch: [4,22,14,10,10,24,14,8,6,32,22,16,26,18,14,26,22,18,16,22,32,14,
+              6,6,6,6,6,6,6,20,32,32,32,18][i] || 14
+      }));
+      XLSX.utils.book_append_sheet(wb, wsAl, '👨‍🎓 Data Alumni');
+    }
+
+    // ── SHEET 3: DATA PENGGUNA LULUSAN ────────────────────
+    if (em.length) {
+      const headersEm = [
+        'No','Instansi/Perusahaan','Sektor','Kota','Nama Pengisi','Jabatan Pengisi',
+        'Email','No. Telp','Nama Alumni','Jabatan Alumni','Lama Bekerja',
+        'ER1 - Integritas','ER2 - Keahlian Bidang','ER3 - Bahasa Asing',
+        'ER4 - Teknologi Info','ER5 - Komunikasi','ER6 - Kerjasama Tim','ER7 - Pengembangan Diri',
+        'Rata-rata 7 Aspek','Tingkat Kepuasan','Bersedia Rekrut Lagi',
+        'Saran','Pesan','Tanggal Isi',
+      ];
+      const rowsEm = em.map((e, i) => {
+        const rtgVals = [e.rtg_er1,e.rtg_er2,e.rtg_er3,e.rtg_er4,e.rtg_er5,e.rtg_er6,e.rtg_er7].filter(Boolean);
+        const avgRtg  = rtgVals.length ? (rtgVals.reduce((a,b)=>a+b,0)/rtgVals.length).toFixed(2) : '';
+        return [
+          i+1, e.instansi||'', e.sektor||'', e.kota||'', e.pengisi||'', e.jab_pengisi||'',
+          e.email||'', e.telp||'', e.alumni_nama||'', e.alumni_jab||'', e.lama||'',
+          e.rtg_er1||'', e.rtg_er2||'', e.rtg_er3||'', e.rtg_er4||'',
+          e.rtg_er5||'', e.rtg_er6||'', e.rtg_er7||'', avgRtg,
+          e.kepuasan||'', e.rekrut||'', e.saran||'', e.pesan||'',
+          new Date(e.created_at).toLocaleString('id-ID'),
+        ];
+      });
+      const wsEm = XLSX.utils.aoa_to_sheet([headersEm, ...rowsEm]);
+      wsEm['!cols'] = headersEm.map((h, i) => ({
+        wch: [4,28,16,14,20,20,24,14,20,18,14,
+              6,6,6,6,6,6,6,12,18,16,32,32,18][i] || 14
+      }));
+      XLSX.utils.book_append_sheet(wb, wsEm, '🏢 Pengguna Lulusan');
+    }
+
+    // ── SHEET 4: DATA STAKEHOLDER ─────────────────────────
+    if (sk.length) {
+      const headersSk = [
+        'No','Tahun Survei','Jenis Stakeholder','Nama','Instansi','Email',
+        'SK1 - Pengajaran','SK2 - Kurikulum','SK3 - Fasilitas',
+        'SK4 - Pelayanan Akademik','SK5 - Kompetensi SDM','SK6 - Suasana Akademik','SK7 - Kerjasama',
+        'Rata-rata 7 Aspek','Tingkat Kepuasan','Saran','Harapan','Tanggal Isi',
+      ];
+      const rowsSk = sk.map((s, i) => {
+        const rtgVals = [s.rtg_sk1,s.rtg_sk2,s.rtg_sk3,s.rtg_sk4,s.rtg_sk5,s.rtg_sk6,s.rtg_sk7].filter(Boolean);
+        const avgRtg  = rtgVals.length ? (rtgVals.reduce((a,b)=>a+b,0)/rtgVals.length).toFixed(2) : '';
+        return [
+          i+1, s.tahun_survei||'', s.jenis||'', s.nama||'', s.instansi||'', s.email||'',
+          s.rtg_sk1||'', s.rtg_sk2||'', s.rtg_sk3||'', s.rtg_sk4||'',
+          s.rtg_sk5||'', s.rtg_sk6||'', s.rtg_sk7||'', avgRtg,
+          s.kepuasan||'', s.saran||'', s.harapan||'',
+          new Date(s.created_at).toLocaleString('id-ID'),
+        ];
+      });
+      const wsSk = XLSX.utils.aoa_to_sheet([headersSk, ...rowsSk]);
+      wsSk['!cols'] = headersSk.map((h, i) => ({
+        wch: [4,12,20,22,26,24,6,6,6,6,6,6,6,12,18,32,32,18][i] || 14
+      }));
+      XLSX.utils.book_append_sheet(wb, wsSk, '🤝 Stakeholder');
+    }
+
+    // ── SHEET 5: TABEL 2.7B — KEPUASAN PENGGUNA LULUSAN ──
+    {
+      const header27b = [
+        ['TABEL 2.7B — KEPUASAN PENGGUNA LULUSAN (LAM PTIP IAPS 1.0)', '', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Jumlah Responden: ${em.length} · Dicetak: ${tgl}`, '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['No', 'Aspek Kompetensi (7 Aspek LAM PTIP)', 'Sangat Baik (4)', 'Baik (3)', 'Cukup (2)', 'Kurang (1)', 'Rata-rata'],
+      ];
+      const rows27b = ASPEK_LAM.map((r, i) => {
+        const k  = `rtg_er${i+1}`;
+        const vs = em.map(e => e[k]).filter(Boolean);
+        const avg = vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : '-';
+        const cnt = { 4:0, 3:0, 2:0, 1:0 };
+        vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
+        return [i+1, r.lbl, cnt[4], cnt[3], cnt[2], cnt[1], parseFloat(avg)||0];
+      });
+      // Baris total/rata-rata keseluruhan
+      const allVals = em.length ? ASPEK_LAM.map((_,i) => {
+        const k = `rtg_er${i+1}`;
+        const vs = em.map(e=>e[k]).filter(Boolean);
+        return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : 0;
+      }) : [];
+      const grandAvg = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length).toFixed(2) : '-';
+      rows27b.push(['', 'RATA-RATA KESELURUHAN', '', '', '', '', parseFloat(grandAvg)||0]);
+
+      const ws27b = XLSX.utils.aoa_to_sheet([...header27b, ...rows27b]);
+      ws27b['!cols'] = [{ wch:4 }, { wch:50 }, { wch:14 }, { wch:10 }, { wch:10 }, { wch:10 }, { wch:12 }];
+      XLSX.utils.book_append_sheet(wb, ws27b, '2.7B Kepuasan Pengguna');
+    }
+
+    // ── SHEET 6: TABEL 2.7C — KEPUASAN STAKEHOLDER ───────
+    if (sk.length || em.length) {
+      const JENIS_LIST_27C = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+      const header27c = [
+        ['TABEL 2.7C — KEPUASAN STAKEHOLDER (LAM PTIP IAPS 1.0)', '', '', '', '', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', '', ''],
+        ['No','Jenis Stakeholder',
+         `Resp TS-2 (${TAHUN_SURVEI.TS_2})`,`Resp TS-1 (${TAHUN_SURVEI.TS_1})`,`Resp TS (${TAHUN_SURVEI.TS})`,
+         'Sangat Baik','Baik','Cukup','Kurang','Skor Rata-rata'],
+      ];
+      const rows27c = JENIS_LIST_27C.map((j, idx) => {
+        const isPL = j === 'Pengguna Lulusan';
+        const rTS2 = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_2).length;
+        const rTS1 = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_1).length;
+        const rTS  = isPL ? em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS).length;
+        const keys = isPL
+          ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
+          : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
+        const grpTS = isPL ? em : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS);
+        const cnt   = { SB:0, B:0, C:0, K:0 };
+        grpTS.forEach(x => {
+          const vals = keys.map(k => x[k]).filter(Boolean);
+          if (!vals.length) return;
+          const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+          if (avg >= 3.5) cnt.SB++; else if (avg >= 2.5) cnt.B++; else if (avg >= 1.5) cnt.C++; else cnt.K++;
+        });
+        const allGrp = isPL ? em : sk.filter(x => x.jenis === j);
+        let skor = '-';
+        if (allGrp.length) {
+          const tot = allGrp.reduce((s, x) => {
+            const vals = keys.map(k => x[k]).filter(Boolean);
+            return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
+          }, 0);
+          skor = (tot / allGrp.length).toFixed(2);
+        }
+        return [idx+1, j, rTS2||0, rTS1||0, rTS||0, cnt.SB||0, cnt.B||0, cnt.C||0, cnt.K||0, skor === '-' ? '' : parseFloat(skor)];
+      });
+      const ws27c = XLSX.utils.aoa_to_sheet([...header27c, ...rows27c]);
+      ws27c['!cols'] = [
+        {wch:4},{wch:22},{wch:12},{wch:12},{wch:12},{wch:12},{wch:8},{wch:8},{wch:8},{wch:14}
+      ];
+      XLSX.utils.book_append_sheet(wb, ws27c, '2.7C Kepuasan Stakeholder');
+    }
+
+    // ── SHEET 7: TABEL 2.8B1 — WAKTU TUNGGU ──────────────
+    {
+      const lt6  = al.filter(a => a.tunggu && (a.tunggu.includes('<') || a.tunggu.includes('Kurang dari 6'))).length;
+      const mid  = al.filter(a => a.tunggu && a.tunggu.includes('6 –')).length;
+      const gt18 = al.filter(a => a.tunggu && a.tunggu.includes('> 18')).length;
+      const tot  = lt6 + mid + gt18 || 1;
+      const header28b1 = [
+        ['TABEL 2.8B1 — WAKTU TUNGGU MENDAPAT PEKERJAAN (LAM PTIP IAPS 1.0)', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Total Alumni: ${al.length} · Dicetak: ${tgl}`, '', '', ''],
+        ['', '', '', ''],
+        ['Kategori Waktu Tunggu', 'Jumlah Lulusan', 'Persentase', 'Indikator LAM'],
+      ];
+      const rows28b1 = [
+        ['WT < 6 bulan (Kategori Cepat)', lt6, `${Math.round(lt6/tot*100)}%`, `WT1 = ${Math.round(lt6/tot*100)}%`],
+        ['6 ≤ WT ≤ 18 bulan (Kategori Sedang)', mid, `${Math.round(mid/tot*100)}%`, '–'],
+        ['WT > 18 bulan (Kategori Lambat)', gt18, `${Math.round(gt18/tot*100)}%`, '–'],
+        ['TOTAL', lt6+mid+gt18, '100%', ''],
+      ];
+      const ws28b1 = XLSX.utils.aoa_to_sheet([...header28b1, ...rows28b1]);
+      ws28b1['!cols'] = [{wch:36},{wch:16},{wch:14},{wch:22}];
+      XLSX.utils.book_append_sheet(wb, ws28b1, '2.8B1 Waktu Tunggu');
+    }
+
+    // ── SHEET 8: TABEL 2.8B2 — TINGKAT TEMPAT KERJA ──────
+    {
+      const lok = al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal')).length;
+      const nas = al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional')).length;
+      const mul = al.filter(a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'))).length;
+      const tot = al.length || 1;
+      const header28b2 = [
+        ['TABEL 2.8B2 — TEMPAT KERJA / BERWIRAUSAHA (LAM PTIP IAPS 1.0)', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Total Alumni: ${al.length} · Dicetak: ${tgl}`, '', '', ''],
+        ['', '', '', ''],
+        ['Tingkat Tempat Kerja', 'Jumlah', 'Persentase', 'Keterangan'],
+      ];
+      const rows28b2 = [
+        ['Lokal/Wilayah/Wirausaha tidak berizin', lok, `${Math.round(lok/tot*100)}%`, 'Cakupan lokal atau usaha mandiri tanpa badan hukum'],
+        ['Nasional/Berbadan Hukum', nas, `${Math.round(nas/tot*100)}%`, 'Perusahaan/instansi nasional berbadan hukum'],
+        ['Multinasional/Internasional', mul, `${Math.round(mul/tot*100)}%', 'Perusahaan lintas negara atau lembaga internasional'],
+        ['TOTAL', lok+nas+mul, '100%', ''],
+      ];
+      const ws28b2 = XLSX.utils.aoa_to_sheet([...header28b2, ...rows28b2]);
+      ws28b2['!cols'] = [{wch:40},{wch:10},{wch:12},{wch:48}];
+      XLSX.utils.book_append_sheet(wb, ws28b2, '2.8B2 Tempat Kerja');
+    }
+
+    // ── SHEET 9: PENILAIAN PRODI OLEH ALUMNI ─────────────
+    if (al.length) {
+      const headerProdi = [
+        ['PENILAIAN PROGRAM STUDI OLEH ALUMNI', '', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Jumlah Responden: ${al.length} · Dicetak: ${tgl}`, '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['No', 'Aspek Penilaian Prodi (7 Aspek)', 'Sangat Baik (4)', 'Baik (3)', 'Cukup (2)', 'Kurang (1)', 'Rata-rata'],
+      ];
+      const rowsProdi = ASPEK_PRODI.map((r, i) => {
+        const k  = `rtg_ar${i+1}`;
+        const vs = al.map(a => a[k]).filter(Boolean);
+        const avg = vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : '-';
+        const cnt = { 4:0, 3:0, 2:0, 1:0 };
+        vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
+        return [i+1, r.lbl, cnt[4], cnt[3], cnt[2], cnt[1], parseFloat(avg)||0];
+      });
+      const wsProdi = XLSX.utils.aoa_to_sheet([...headerProdi, ...rowsProdi]);
+      wsProdi['!cols'] = [{wch:4},{wch:50},{wch:14},{wch:10},{wch:10},{wch:10},{wch:12}];
+      XLSX.utils.book_append_sheet(wb, wsProdi, '⭐ Penilaian Prodi');
+    }
+
+    // ── SHEET 10: PIVOT — BIDANG KERJA × GENDER ──────────
+    if (al.length) {
+      const bidangMap = {};
+      al.forEach(a => {
+        const b = (a.bidang||'Tidak diisi').split('(')[0].trim().substring(0, 40);
+        const g = a.gender || 'Tidak diisi';
+        if (!bidangMap[b]) bidangMap[b] = { 'Laki-laki':0, 'Perempuan':0, 'Tidak diisi':0 };
+        bidangMap[b][g] = (bidangMap[b][g]||0) + 1;
+      });
+      const headerPivot = [
+        ['PIVOT — DISTRIBUSI BIDANG KERJA PER GENDER', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', ''],
+        ['', '', '', ''],
+        ['Bidang / Sektor Pekerjaan', 'Laki-laki', 'Perempuan', 'Total'],
+      ];
+      const rowsPivot = Object.entries(bidangMap)
+        .sort((a,b) => (b[1]['Laki-laki']+b[1]['Perempuan']) - (a[1]['Laki-laki']+a[1]['Perempuan']))
+        .map(([b, g]) => [b, g['Laki-laki']||0, g['Perempuan']||0, (g['Laki-laki']||0)+(g['Perempuan']||0)]);
+      const wsPivot = XLSX.utils.aoa_to_sheet([...headerPivot, ...rowsPivot]);
+      wsPivot['!cols'] = [{wch:44},{wch:12},{wch:12},{wch:10}];
+      XLSX.utils.book_append_sheet(wb, wsPivot, '🔀 Pivot Bidang-Gender');
+    }
+
+    // ── Simpan workbook ───────────────────────────────────
+    XLSX.writeFile(wb, `LaporanLengkap_TracerStudy_MSP_FPIK_UNSRAT_${tglFile}.xlsx`);
+
+    // Feedback sukses
+    if (btn) {
+      btn.innerHTML = '✅ Berhasil Diunduh!';
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = origText; }, 2500);
+    }
+
+  } catch (err) {
+    console.error('[exportExcel]', err);
+    alert(`Gagal membuat Excel: ${err.message}`);
+    if (btn) { btn.disabled = false; btn.innerHTML = origText; }
   }
-
-  const XLSX  = window.XLSX;
-  const wb    = XLSX.utils.book_new();
-  const tgl   = new Date().toLocaleDateString('id-ID');
-
-  if (al.length) {
-    const wsAl = XLSX.utils.json_to_sheet(al.map(a => ({
-      'Nama'        : a.nama||'',
-      'NIM'         : a.nim||'',
-      'Thn Masuk'   : a.masuk||'',
-      'Thn Lulus'   : a.lulus||'',
-      'Email'       : a.email||'',
-      'HP'          : a.hp||'',
-      'Gender'      : a.gender||'',
-      'IPK'         : a.ipk||'',
-      'Status'      : a.status||'',
-      'Waktu Tunggu': a.tunggu||'',
-      'Instansi'    : a.instansi||'',
-      'Jabatan'     : a.jabatan||'',
-      'Kota'        : a.kota||'',
-      'Bidang'      : a.bidang||'',
-      'Level Kerja' : a.level_kerja||'',
-      'Gaji'        : a.gaji||'',
-      'Kesesuaian'  : a.kesesuaian||'',
-      'Rekomendasi' : a.rekomendasi||'',
-      'Rtg AR1'     : a.rtg_ar1||'',
-      'Rtg AR2'     : a.rtg_ar2||'',
-      'Rtg AR3'     : a.rtg_ar3||'',
-      'Rtg AR4'     : a.rtg_ar4||'',
-      'Rtg AR5'     : a.rtg_ar5||'',
-      'Rtg AR6'     : a.rtg_ar6||'',
-      'Rtg AR7'     : a.rtg_ar7||'',
-      'Tgl Isi'     : new Date(a.created_at).toLocaleDateString('id-ID'),
-    })));
-    XLSX.utils.book_append_sheet(wb, wsAl, 'Data Alumni');
-  }
-
-  if (em.length) {
-    const wsEm = XLSX.utils.json_to_sheet(em.map(e => ({
-      'Instansi'    : e.instansi||'',
-      'Sektor'      : e.sektor||'',
-      'Kota'        : e.kota||'',
-      'Pengisi'     : e.pengisi||'',
-      'Jabatan'     : e.jab_pengisi||'',
-      'Email'       : e.email||'',
-      'Telp'        : e.telp||'',
-      'Alumni'      : e.alumni_nama||'',
-      'Jab Alumni'  : e.alumni_jab||'',
-      'Lama Kerja'  : e.lama||'',
-      'Rtg ER1'     : e.rtg_er1||'',
-      'Rtg ER2'     : e.rtg_er2||'',
-      'Rtg ER3'     : e.rtg_er3||'',
-      'Rtg ER4'     : e.rtg_er4||'',
-      'Rtg ER5'     : e.rtg_er5||'',
-      'Rtg ER6'     : e.rtg_er6||'',
-      'Rtg ER7'     : e.rtg_er7||'',
-      'Kepuasan'    : e.kepuasan||'',
-      'Rekrut'      : e.rekrut||'',
-      'Tgl Isi'     : new Date(e.created_at).toLocaleDateString('id-ID'),
-    })));
-    XLSX.utils.book_append_sheet(wb, wsEm, 'Pengguna Lulusan');
-  }
-
-  const t27b = ASPEK_LAM.map((r,i) => {
-    const k  = `rtg_er${i+1}`;
-    const vs = em.map(e=>e[k]).filter(Boolean);
-    const avg= vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
-    const cnt= {sb:0,b:0,c:0,k:0};
-    vs.forEach(v=>{if(v>=4)cnt.sb++;else if(v>=3)cnt.b++;else if(v>=2)cnt.c++;else cnt.k++;});
-    return { 'No':i+1, 'Aspek Kompetensi':r.lbl, 'Sangat Baik(4)':cnt.sb, 'Baik(3)':cnt.b, 'Cukup(2)':cnt.c, 'Kurang(1)':cnt.k, 'Rata-rata':avg };
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t27b), 'Tabel 2.7B LAM');
-
-  const lt6  = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
-  const mid  = al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length;
-  const gt18 = al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length;
-  const tot  = lt6+mid+gt18||1;
-  const t28b1= [
-    { 'Kategori':'WT < 6 bulan',      'Jumlah':lt6,  'Persentase': Math.round(lt6/tot*100)+'%' },
-    { 'Kategori':'6 ≤ WT ≤ 18 bulan', 'Jumlah':mid,  'Persentase': Math.round(mid/tot*100)+'%' },
-    { 'Kategori':'WT > 18 bulan',     'Jumlah':gt18, 'Persentase': Math.round(gt18/tot*100)+'%' },
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t28b1), 'Tabel 2.8B1 WT');
-
-  const lok = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length;
-  const nas = al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length;
-  const mul = al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length;
-  const t28b2= [
-    { 'Tingkat':'Lokal/Wilayah/Wirausaha',   'Jumlah':lok, 'Persentase': Math.round(lok/al.length*100||0)+'%' },
-    { 'Tingkat':'Nasional/Berbadan Hukum',    'Jumlah':nas, 'Persentase': Math.round(nas/al.length*100||0)+'%' },
-    { 'Tingkat':'Multinasional/Internasional','Jumlah':mul, 'Persentase': Math.round(mul/al.length*100||0)+'%' },
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t28b2), 'Tabel 2.8B2 TK');
-
-  XLSX.writeFile(wb, `Laporan_TracerStudy_MSP_FPIK_UNSRAT_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 // ════════════════════════════════════════════════════════
