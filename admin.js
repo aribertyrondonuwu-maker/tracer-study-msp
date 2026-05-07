@@ -439,43 +439,39 @@ const JENIS_LIST = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan',
 const TAHUN = { TS: TAHUN_SURVEI.TS, TS1: TAHUN_SURVEI.TS_1, TS2: TAHUN_SURVEI.TS_2 };
 
 function render27CTable(sk, em) {
-  // em (ts_employer) digunakan khusus untuk baris "Pengguna Lulusan"
-  // karena data mereka masuk lewat form Atasan Langsung, bukan form Stakeholder
   const _em = em || _cache.em || [];
   const cfg = getSkConfig();
 
+  // Header persis sesuai Tabel 2.7C LKPS LAM PTIP IAPS 1.0
   const headerRow = `
     <thead>
-      <tr style="background:var(--navy);color:#fff;font-size:11px">
-        <th rowspan="3" style="text-align:center;vertical-align:middle;width:30px">No</th>
-        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:110px">Stakeholder</th>
+      <tr style="background:var(--navy);color:#fff;font-size:11px;text-align:center">
+        <th rowspan="3" style="vertical-align:middle;width:28px">No</th>
+        <th rowspan="3" style="vertical-align:middle;min-width:110px">Stakeholder</th>
         <th colspan="2" style="text-align:center">Instrumen</th>
         <th colspan="3" style="text-align:center">Jumlah Responden</th>
-        <th colspan="3" style="text-align:center">% Keterwakilan Responden</th>
-        <th colspan="4" style="text-align:center">Jml Responden Menjawab (SB=4, B=3, C=2, K=1)</th>
-        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:60px">Skor</th>
-        <th rowspan="3" style="text-align:center;vertical-align:middle;min-width:120px">Tindak Lanjut</th>
+        <th colspan="3" style="text-align:center">Persentase Keterwakilan Responden</th>
+        <th colspan="4" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
+        <th rowspan="3" style="vertical-align:middle;min-width:56px">Skor</th>
+        <th rowspan="3" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
       </tr>
-      <tr style="background:var(--navy-md);color:#fff;font-size:10px">
-        <th style="text-align:center">Ada</th>
-        <th style="text-align:center">Tidak Ada</th>
-        <th style="text-align:center">TS-2<br>(${TAHUN.TS2})</th>
-        <th style="text-align:center">TS-1<br>(${TAHUN.TS1})</th>
-        <th style="text-align:center">TS<br>(${TAHUN.TS})</th>
-        <th style="text-align:center">TS-2<br>(${TAHUN.TS2})</th>
-        <th style="text-align:center">TS-1<br>(${TAHUN.TS1})</th>
-        <th style="text-align:center">TS<br>(${TAHUN.TS})</th>
-        <th style="text-align:center">SB</th>
-        <th style="text-align:center">B</th>
-        <th style="text-align:center">C</th>
-        <th style="text-align:center">KB</th>
+      <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
+        <th>Ada</th>
+        <th>Tidak Ada</th>
+        <th>TS-2<br>(${TAHUN.TS2})</th>
+        <th>TS-1<br>(${TAHUN.TS1})</th>
+        <th>TS<br>(${TAHUN.TS})</th>
+        <th>TS-2<br>(${TAHUN.TS2})</th>
+        <th>TS-1<br>(${TAHUN.TS1})</th>
+        <th>TS<br>(${TAHUN.TS})</th>
+        <th>SB</th><th>B</th><th>C</th><th>KB</th>
       </tr>
-      <tr style="background:var(--g100);font-size:10px;color:var(--g600)">
-        <th style="text-align:center">(3)</th><th style="text-align:center">(4)</th>
-        <th style="text-align:center">(5)</th><th style="text-align:center">(6)</th><th style="text-align:center">(7)</th>
-        <th style="text-align:center">(8)</th><th style="text-align:center">(9)</th><th style="text-align:center">(10)</th>
-        <th style="text-align:center">(11)</th><th style="text-align:center">(12)</th>
-        <th style="text-align:center">(13)</th><th style="text-align:center">(14)</th>
+      <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+        <th>1</th><th>2</th>
+        <th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
+        <th>8</th><th>9</th><th>10</th>
+        <th>11</th><th>12</th><th>13</th><th>14</th>
+        <th>15</th><th>16</th>
       </tr>
     </thead>`;
 
@@ -1303,20 +1299,47 @@ export async function exportExcel() {
     // ── SHEET 6: TABEL 2.7C — KEPUASAN STAKEHOLDER ───────
     if (sk.length || em.length) {
       const JENIS_LIST_27C = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+      const cfg27c = (() => { try { return JSON.parse(localStorage.getItem('sk_27c_config')||'{}'); } catch { return {}; } })();
       const header27c = [
-        ['TABEL 2.7C — KEPUASAN STAKEHOLDER (LAM PTIP IAPS 1.0)', '', '', '', '', '', '', '', '', ''],
-        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', '', ''],
-        ['No','Jenis Stakeholder',
-         `Resp TS-2 (${TAHUN_SURVEI.TS_2})`,`Resp TS-1 (${TAHUN_SURVEI.TS_1})`,`Resp TS (${TAHUN_SURVEI.TS})`,
-         'Sangat Baik','Baik','Cukup','Kurang','Skor Rata-rata'],
+        ['TABEL 2.7C — KEPUASAN STAKEHOLDER INTERNAL DAN EKSTERNAL (LAM PTIP IAPS 1.0)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['Diisi oleh pengusul dari Program Studi pada semua program', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        // Header baris 1
+        ['No', 'Stakeholder',
+         'Instrumen', '',
+         'Jumlah Responden', '', '',
+         'Persentase Keterwakilan Responden', '', '',
+         'Jumlah Responden yang menjawab layanan (SB=4, B=3, C=2, K=1)', '', '', '',
+         'Skor', 'Tindak Lanjut'],
+        // Header baris 2 (sub-kolom)
+        ['', '',
+         'Ada', 'Tidak Ada',
+         `TS-2 (${TAHUN_SURVEI.TS_2})`, `TS-1 (${TAHUN_SURVEI.TS_1})`, `TS (${TAHUN_SURVEI.TS})`,
+         `TS-2 (${TAHUN_SURVEI.TS_2})`, `TS-1 (${TAHUN_SURVEI.TS_1})`, `TS (${TAHUN_SURVEI.TS})`,
+         'SB', 'B', 'C', 'KB',
+         '', ''],
+        // Nomor kolom sesuai LKPS
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16'],
       ];
       const rows27c = JENIS_LIST_27C.map((j, idx) => {
-        const isPL = j === 'Pengguna Lulusan';
-        const rTS2 = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_2).length;
-        const rTS1 = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_1).length;
-        const rTS  = isPL ? em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS).length;
-        const keys = isPL
+        const isPL  = j === 'Pengguna Lulusan';
+        const jKey  = j.replace(/\s+/g,'_');
+        const c     = cfg27c[jKey] || {};
+
+        const rTS2  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_2).length;
+        const rTS1  = isPL ? 0 : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS_1).length;
+        const rTS   = isPL ? em.length : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS).length;
+
+        const popTS2 = parseInt(c.popTS2 || 0);
+        const popTS1 = parseInt(c.popTS1 || 0);
+        const popTS  = parseInt(c.popTS  || 0);
+        const pctFmt = (r, p) => p > 0 ? parseFloat((r/p*100).toFixed(1)) : '';
+
+        const instrAda   = c.instrAda === '1' ? '✓ Ada' : c.instrAda === '0' ? '' : '';
+        const instrTidak = c.instrAda === '0' ? '✓ Tidak Ada' : '';
+
+        const keys  = isPL
           ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
           : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
         const grpTS = isPL ? em : sk.filter(x => x.jenis === j && x.tahun_survei === TAHUN_SURVEI.TS);
@@ -1328,19 +1351,32 @@ export async function exportExcel() {
           if (avg >= 3.5) cnt.SB++; else if (avg >= 2.5) cnt.B++; else if (avg >= 1.5) cnt.C++; else cnt.K++;
         });
         const allGrp = isPL ? em : sk.filter(x => x.jenis === j);
-        let skor = '-';
+        let skor = '';
         if (allGrp.length) {
           const tot = allGrp.reduce((s, x) => {
             const vals = keys.map(k => x[k]).filter(Boolean);
             return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
           }, 0);
-          skor = (tot / allGrp.length).toFixed(2);
+          skor = parseFloat((tot / allGrp.length).toFixed(2));
         }
-        return [idx+1, j, rTS2||0, rTS1||0, rTS||0, cnt.SB||0, cnt.B||0, cnt.C||0, cnt.K||0, skor === '-' ? '' : parseFloat(skor)];
+        return [
+          idx+1, j,
+          instrAda, instrTidak,
+          rTS2||0, rTS1||0, rTS||0,
+          pctFmt(rTS2, popTS2), pctFmt(rTS1, popTS1), pctFmt(rTS, popTS),
+          cnt.SB||0, cnt.B||0, cnt.C||0, cnt.K||0,
+          skor,
+          c.tindak || '',
+        ];
       });
       const ws27c = XLSX.utils.aoa_to_sheet([...header27c, ...rows27c]);
       ws27c['!cols'] = [
-        {wch:4},{wch:22},{wch:12},{wch:12},{wch:12},{wch:12},{wch:8},{wch:8},{wch:8},{wch:14}
+        {wch:4},{wch:22},
+        {wch:10},{wch:12},
+        {wch:10},{wch:10},{wch:10},
+        {wch:10},{wch:10},{wch:10},
+        {wch:6},{wch:6},{wch:6},{wch:6},
+        {wch:8},{wch:32}
       ];
       XLSX.utils.book_append_sheet(wb, ws27c, '2.7C Kepuasan Stakeholder');
     }
