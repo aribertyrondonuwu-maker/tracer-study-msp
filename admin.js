@@ -246,20 +246,46 @@ async function renderLAM() {
     </p>
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
-    <strong>📊 Tabel 2.8B1 — Waktu Tunggu Lulusan (${al.length} responden)</strong>
+    <strong>📊 Tabel 2.8B1 — Waktu Tunggu Mendapatkan Pekerjaan</strong>
+    <span style="font-size:11px;color:var(--g500);margin-left:6px">Per tahun lulus (TS-4, TS-3, TS-2)</span>
   </div>
-  <div class="tw" style="margin-bottom:24px">
-    <table class="dt">
-      <thead><tr><th>Kategori Waktu Tunggu</th><th>Jumlah Lulusan</th><th>Persentase</th></tr></thead>
-      <tbody>
-        <tr><td>WT &lt; 6 bulan</td><td>${tungguCat.lt6}</td><td>${Math.round(tungguCat.lt6/totalT*100)}%</td></tr>
-        <tr><td>6 ≤ WT ≤ 18 bulan</td><td>${tungguCat['6_18']}</td><td>${Math.round(tungguCat['6_18']/totalT*100)}%</td></tr>
-        <tr><td>WT &gt; 18 bulan</td><td>${tungguCat.gt18}</td><td>${Math.round(tungguCat.gt18/totalT*100)}%</td></tr>
-      </tbody>
-    </table>
+  <div class="tw" style="margin-bottom:8px;overflow-x:auto">
+    ${(() => {
+      const { rows: r81, tot: t81 } = build28B1Data(al);
+      const mkR = (r, bold) => `<tr${bold?' style="font-weight:700;background:var(--g50)"':''}>
+        <td style="text-align:center">${r.label}</td>
+        <td style="text-align:center">${r.jumlah}</td>
+        <td style="text-align:center">${r.terlacak}</td>
+        <td style="text-align:center;background:#fffde7">${r.lt6}</td>
+        <td style="text-align:center;background:#fffde7">${r.mid}</td>
+        <td style="text-align:center;background:#fffde7">${r.gt18}</td>
+      </tr>`;
+      return `<table class="dt" style="min-width:560px">
+        <thead>
+          <tr>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+            <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan yang Terlacak</th>
+            <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak dengan Waktu Tunggu<br>Mendapatkan Pekerjaan</th>
+          </tr>
+          <tr>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &lt; 6 bulan</th>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00">6 ≤ WT ≤ 18 bulan</th>
+            <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &gt; 18 bulan</th>
+          </tr>
+          <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${r81.map(r=>mkR(r,false)).join('')}
+          ${mkR({label:'Jumlah',...t81},true)}
+        </tbody>
+      </table>`;
+    })()}
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
-    <strong>WT1 (% lulusan dengan WT &lt; 6 bln) = ${pctLt6}%</strong>
+    <strong>WT1 (% lulusan dengan WT &lt; 6 bln dari terlacak) = ${pctLt6}%</strong>
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>📊 Tabel 2.8B2 — Tempat Kerja / Berwirausaha (${al.length} responden)</strong>
@@ -381,20 +407,89 @@ function renderLAM27C(sk) {
   el.innerHTML = `<div class="tw">${render27CTable(sk, _cache.em||[])}</div>`;
 }
 
+// ── Helper: hitung data 2.8B1 per tahun lulus (TS-4, TS-3, TS-2)
+function build28B1Data(al) {
+  const TS  = TAHUN_SURVEI.TS;
+  const TS4 = TS - 4;
+  const TS3 = TS - 3;
+  const TS2 = TAHUN_SURVEI.TS_2;
+
+  const isLt6  = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6') || a.tunggu.includes('< 6'));
+  const is6_18 = a => a.tunggu && (a.tunggu.includes('6 –') || a.tunggu.includes('6-') || a.tunggu.includes('6 -') || a.tunggu.includes('6 ≤'));
+  const isGt18 = a => a.tunggu && (a.tunggu.includes('> 18') || a.tunggu.includes('>18') || a.tunggu.includes('> 18'));
+
+  const TAHUN_ROWS = [
+    { label: `TS-4 (${TS4})`, yr: TS4 },
+    { label: `TS-3 (${TS3})`, yr: TS3 },
+    { label: `TS-2 (${TS2})`, yr: TS2 },
+  ];
+
+  const rows = TAHUN_ROWS.map(({ label, yr }) => {
+    const grp      = al.filter(a => parseInt(a.lulus) === yr);
+    const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    return {
+      label,
+      jumlah   : grp.length,
+      terlacak : terlacak.length,
+      lt6      : terlacak.filter(isLt6).length,
+      mid      : terlacak.filter(is6_18).length,
+      gt18     : terlacak.filter(isGt18).length,
+    };
+  });
+
+  const tot = {
+    jumlah   : rows.reduce((s,r) => s+r.jumlah,   0),
+    terlacak : rows.reduce((s,r) => s+r.terlacak, 0),
+    lt6      : rows.reduce((s,r) => s+r.lt6,      0),
+    mid      : rows.reduce((s,r) => s+r.mid,      0),
+    gt18     : rows.reduce((s,r) => s+r.gt18,     0),
+  };
+  return { rows, tot };
+}
+
 function renderLAM28B1(al) {
   const el = document.getElementById('sec-28b1');
   if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
-  const lt6  = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
-  const mid  = al.filter(a=>a.tunggu&&a.tunggu.includes('6 –')).length;
-  const gt18 = al.filter(a=>a.tunggu&&a.tunggu.includes('> 18')).length;
-  const tot  = lt6+mid+gt18||1;
-  el.innerHTML = `<div class="tw"><table class="dt">
-    <thead><tr><th>Kategori</th><th>Jumlah</th><th>%</th></tr></thead>
+
+  const { rows, tot } = build28B1Data(al);
+
+  const mkRow = (r, isTot=false) => `
+    <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
+      <td style="text-align:center">${r.label}</td>
+      <td style="text-align:center">${r.jumlah}</td>
+      <td style="text-align:center">${r.terlacak}</td>
+      <td style="text-align:center;background:#fffde7">${r.lt6}</td>
+      <td style="text-align:center;background:#fffde7">${r.mid}</td>
+      <td style="text-align:center;background:#fffde7">${r.gt18}</td>
+    </tr>`;
+
+  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
+    <thead>
+      <tr>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan yang Terlacak</th>
+        <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak dengan Waktu Tunggu<br>Mendapatkan Pekerjaan</th>
+      </tr>
+      <tr>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &lt; 6 bulan</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">6 ≤ WT ≤ 18<br>bulan</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &gt; 18 bulan</th>
+      </tr>
+      <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+      </tr>
+    </thead>
     <tbody>
-      <tr><td>WT &lt; 6 bulan</td><td>${lt6}</td><td>${Math.round(lt6/tot*100)}%</td></tr>
-      <tr><td>6 ≤ WT ≤ 18 bulan</td><td>${mid}</td><td>${Math.round(mid/tot*100)}%</td></tr>
-      <tr><td>WT &gt; 18 bulan</td><td>${gt18}</td><td>${Math.round(gt18/tot*100)}%</td></tr>
-    </tbody></table></div>`;
+      ${rows.map(r => mkRow(r)).join('')}
+      ${mkRow({ label:'Jumlah', ...tot }, true)}
+    </tbody>
+  </table>
+  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
+    * Sesuai format LKPS LAM PTIP IAPS 1.0. TS = Tahun Survei (${TAHUN_SURVEI.TS}).
+    Indikator WT1 = % Lulusan dengan WT &lt; 6 bulan dari total terlacak:
+    <strong>${tot.terlacak ? Math.round(tot.lt6/tot.terlacak*100) : 0}%</strong>
+  </p></div>`;
 }
 
 // ── Helper: hitung data 2.8B2 per tahun lulus (TS-4, TS-3, TS-2)
@@ -1593,26 +1688,24 @@ export async function exportExcel() {
       XLSX.utils.book_append_sheet(wb, ws27c, '2.7C Kepuasan Stakeholder');
     }
 
-    // ── SHEET 7: TABEL 2.8B1 — WAKTU TUNGGU ──────────────
+    // ── SHEET 7: TABEL 2.8B1 — WAKTU TUNGGU (per tahun lulus) ──
     {
-      const lt6  = al.filter(a => a.tunggu && (a.tunggu.includes('<') || a.tunggu.includes('Kurang dari 6'))).length;
-      const mid  = al.filter(a => a.tunggu && a.tunggu.includes('6 –')).length;
-      const gt18 = al.filter(a => a.tunggu && a.tunggu.includes('> 18')).length;
-      const tot  = lt6 + mid + gt18 || 1;
+      const { rows: r81, tot: t81 } = build28B1Data(al);
       const header28b1 = [
-        ['TABEL 2.8B1 — WAKTU TUNGGU MENDAPAT PEKERJAAN (LAM PTIP IAPS 1.0)', '', '', ''],
-        [`Program Studi MSP FPIK UNSRAT · Total Alumni: ${al.length} · Dicetak: ${tgl}`, '', '', ''],
-        ['', '', '', ''],
-        ['Kategori Waktu Tunggu', 'Jumlah Lulusan', 'Persentase', 'Indikator LAM'],
+        ['TABEL 2.8B1 — WAKTU TUNGGU MENDAPATKAN PEKERJAAN (LAM PTIP IAPS 1.0)', '', '', '', '', ''],
+        ['Diisi oleh pengusul dari Program Studi pada Program Sarjana/Sarjana Terapan/Sarjana PJJ', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', '', '', ''],
+        ['', '', '', '', '', ''],
+        ['Tahun Lulus', 'Jumlah Lulusan', 'Jumlah Lulusan yang Terlacak',
+         'WT < 6 bulan', '6 ≤ WT ≤ 18 bulan', 'WT > 18 bulan'],
+        ['1', '2', '3', '4', '5', '6'],
       ];
       const rows28b1 = [
-        ['WT < 6 bulan (Kategori Cepat)', lt6, `${Math.round(lt6/tot*100)}%`, `WT1 = ${Math.round(lt6/tot*100)}%`],
-        ['6 ≤ WT ≤ 18 bulan (Kategori Sedang)', mid, `${Math.round(mid/tot*100)}%`, '–'],
-        ['WT > 18 bulan (Kategori Lambat)', gt18, `${Math.round(gt18/tot*100)}%`, '–'],
-        ['TOTAL', lt6+mid+gt18, '100%', ''],
+        ...r81.map(r => [r.label, r.jumlah||0, r.terlacak||0, r.lt6||0, r.mid||0, r.gt18||0]),
+        ['Jumlah', t81.jumlah||0, t81.terlacak||0, t81.lt6||0, t81.mid||0, t81.gt18||0],
       ];
       const ws28b1 = XLSX.utils.aoa_to_sheet([...header28b1, ...rows28b1]);
-      ws28b1['!cols'] = [{wch:36},{wch:16},{wch:14},{wch:22}];
+      ws28b1['!cols'] = [{wch:14},{wch:16},{wch:22},{wch:14},{wch:18},{wch:14}];
       XLSX.utils.book_append_sheet(wb, ws28b1, '2.8B1 Waktu Tunggu');
     }
 
