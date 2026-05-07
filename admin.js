@@ -407,132 +407,68 @@ function renderLAM27C(sk) {
   el.innerHTML = `<div class="tw">${render27CTable(sk, _cache.em||[])}</div>`;
 }
 
-// ── Helper: hitung data 2.8B1 per tahun lulus (TS-4, TS-3, TS-2)
+// ── Helper: semua tahun lulus unik dari data, diurutkan naik
+function getAllTahunLulus(al) {
+  const s = new Set(al.map(a => parseInt(a.lulus)).filter(t => !isNaN(t)));
+  return [...s].sort((a,b) => a - b);
+}
+
+// ── Helper: label tahun relatif (TS-4, TS-3, dst)
+function labelTahun(yr) {
+  const TS = TAHUN_SURVEI.TS;
+  const d = TS - yr;
+  return d === 0 ? `TS (${yr})` : d > 0 ? `TS-${d} (${yr})` : `TS+${Math.abs(d)} (${yr})`;
+}
+
+// ── Helper: 2.8B1 — SEMUA tahun dari data
 function build28B1Data(al) {
-  const TS  = TAHUN_SURVEI.TS;
-  const TS4 = TS - 4;
-  const TS3 = TS - 3;
-  const TS2 = TAHUN_SURVEI.TS_2;
+  const isLt6  = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6'));
+  const is6_18 = a => a.tunggu && (a.tunggu.includes('6 –') || a.tunggu.includes('6 -') || a.tunggu.includes('6-') || a.tunggu.includes('6 ≤'));
+  const isGt18 = a => a.tunggu && (a.tunggu.includes('> 18') || a.tunggu.includes('>18'));
 
-  const isLt6  = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6') || a.tunggu.includes('< 6'));
-  const is6_18 = a => a.tunggu && (a.tunggu.includes('6 –') || a.tunggu.includes('6-') || a.tunggu.includes('6 -') || a.tunggu.includes('6 ≤'));
-  const isGt18 = a => a.tunggu && (a.tunggu.includes('> 18') || a.tunggu.includes('>18') || a.tunggu.includes('> 18'));
-
-  const TAHUN_ROWS = [
-    { label: `TS-4 (${TS4})`, yr: TS4 },
-    { label: `TS-3 (${TS3})`, yr: TS3 },
-    { label: `TS-2 (${TS2})`, yr: TS2 },
-  ];
-
-  const rows = TAHUN_ROWS.map(({ label, yr }) => {
+  const rows = getAllTahunLulus(al).map(yr => {
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
     const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
-    return {
-      label,
-      jumlah   : grp.length,
-      terlacak : terlacak.length,
-      lt6      : terlacak.filter(isLt6).length,
-      mid      : terlacak.filter(is6_18).length,
-      gt18     : terlacak.filter(isGt18).length,
-    };
+    return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
+             lt6: terlacak.filter(isLt6).length, mid: terlacak.filter(is6_18).length, gt18: terlacak.filter(isGt18).length };
   });
 
-  const tot = {
-    jumlah   : rows.reduce((s,r) => s+r.jumlah,   0),
-    terlacak : rows.reduce((s,r) => s+r.terlacak, 0),
-    lt6      : rows.reduce((s,r) => s+r.lt6,      0),
-    mid      : rows.reduce((s,r) => s+r.mid,      0),
-    gt18     : rows.reduce((s,r) => s+r.gt18,     0),
-  };
+  const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
+  if (noYr.length) {
+    const terlacak = noYr.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
+                lt6: terlacak.filter(isLt6).length, mid: terlacak.filter(is6_18).length, gt18: terlacak.filter(isGt18).length });
+  }
+
+  const tot = { jumlah: al.length,
+    terlacak: rows.reduce((s,r)=>s+r.terlacak,0), lt6: rows.reduce((s,r)=>s+r.lt6,0),
+    mid: rows.reduce((s,r)=>s+r.mid,0), gt18: rows.reduce((s,r)=>s+r.gt18,0) };
   return { rows, tot };
 }
 
-function renderLAM28B1(al) {
-  const el = document.getElementById('sec-28b1');
-  if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
-
-  const { rows, tot } = build28B1Data(al);
-
-  const mkRow = (r, isTot=false) => `
-    <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
-      <td style="text-align:center">${r.label}</td>
-      <td style="text-align:center">${r.jumlah}</td>
-      <td style="text-align:center">${r.terlacak}</td>
-      <td style="text-align:center;background:#fffde7">${r.lt6}</td>
-      <td style="text-align:center;background:#fffde7">${r.mid}</td>
-      <td style="text-align:center;background:#fffde7">${r.gt18}</td>
-    </tr>`;
-
-  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
-    <thead>
-      <tr>
-        <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
-        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
-        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan yang Terlacak</th>
-        <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak dengan Waktu Tunggu<br>Mendapatkan Pekerjaan</th>
-      </tr>
-      <tr>
-        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &lt; 6 bulan</th>
-        <th style="text-align:center;background:#fffde7;color:#7c6f00">6 ≤ WT ≤ 18<br>bulan</th>
-        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &gt; 18 bulan</th>
-      </tr>
-      <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
-        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows.map(r => mkRow(r)).join('')}
-      ${mkRow({ label:'Jumlah', ...tot }, true)}
-    </tbody>
-  </table>
-  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
-    * Sesuai format LKPS LAM PTIP IAPS 1.0. TS = Tahun Survei (${TAHUN_SURVEI.TS}).
-    Indikator WT1 = % Lulusan dengan WT &lt; 6 bulan dari total terlacak:
-    <strong>${tot.terlacak ? Math.round(tot.lt6/tot.terlacak*100) : 0}%</strong>
-  </p></div>`;
-}
-
-// ── Helper: hitung data 2.8B2 per tahun lulus (TS-4, TS-3, TS-2)
+// ── Helper: 2.8B2 — SEMUA tahun dari data
 function build28B2Data(al) {
-  const TS  = TAHUN_SURVEI.TS;   // 2025
-  const TS1 = TAHUN_SURVEI.TS_1; // 2024
-  const TS2 = TAHUN_SURVEI.TS_2; // 2023
-  const TS4 = TS - 4;            // 2021
-  const TS3 = TS - 3;            // 2022
-
-  // Hanya alumni bekerja yang punya level_kerja
   const isLok = a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal');
   const isNas = a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional');
   const isMul = a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'));
 
-  // Kelompokkan per tahun lulus
-  const TAHUN_ROWS = [
-    { label: `TS-4 (${TS4})`, yr: TS4 },
-    { label: `TS-3 (${TS3})`, yr: TS3 },
-    { label: `TS-2 (${TS2})`, yr: TS2 },
-  ];
-
-  const rows = TAHUN_ROWS.map(({ label, yr }) => {
+  const rows = getAllTahunLulus(al).map(yr => {
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
     const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
-    return {
-      label,
-      jumlah   : grp.length,
-      terlacak : terlacak.length,
-      lok      : terlacak.filter(isLok).length,
-      nas      : terlacak.filter(isNas).length,
-      mul      : terlacak.filter(isMul).length,
-    };
+    return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
+             lok: terlacak.filter(isLok).length, nas: terlacak.filter(isNas).length, mul: terlacak.filter(isMul).length };
   });
 
-  // Baris Jumlah
-  const tot = {
-    jumlah  : rows.reduce((s,r) => s+r.jumlah, 0),
-    terlacak: rows.reduce((s,r) => s+r.terlacak, 0),
-    lok     : rows.reduce((s,r) => s+r.lok, 0),
-    nas     : rows.reduce((s,r) => s+r.nas, 0),
-    mul     : rows.reduce((s,r) => s+r.mul, 0),
-  };
+  const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
+  if (noYr.length) {
+    const terlacak = noYr.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
+                lok: terlacak.filter(isLok).length, nas: terlacak.filter(isNas).length, mul: terlacak.filter(isMul).length });
+  }
+
+  const tot = { jumlah: al.length,
+    terlacak: rows.reduce((s,r)=>s+r.terlacak,0), lok: rows.reduce((s,r)=>s+r.lok,0),
+    nas: rows.reduce((s,r)=>s+r.nas,0), mul: rows.reduce((s,r)=>s+r.mul,0) };
   return { rows, tot };
 }
 
