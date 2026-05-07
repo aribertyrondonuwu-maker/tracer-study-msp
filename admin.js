@@ -127,16 +127,55 @@ async function renderLAM() {
   const div        = document.getElementById('lam-report');
   if (!al.length && !em.length) { div.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
 
+  const totalEm = em.length || 1;
   const t27b = ASPEK_LAM.map((r, i) => {
     const k   = `rtg_er${i+1}`;
     const vs  = em.map(e => e[k]).filter(Boolean);
-    const avg = vs.length ? (vs.reduce((a,b) => a+b,0)/vs.length).toFixed(2) : '-';
     const cnt = { 4:0, 3:0, 2:0, 1:0 };
     vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
-    return `<tr><td>${i+1}</td><td>${r.lbl}</td>
-      <td>${cnt[4]}</td><td>${cnt[3]}</td><td>${cnt[2]}</td><td>${cnt[1]}</td>
-      <td><strong>${avg}</strong></td></tr>`;
+    // Persentase masing-masing kategori dari total responden
+    const pct = cat => vs.length ? (cnt[cat] / totalEm * 100).toFixed(2) : '0.00';
+    // Jumlah % kepuasan = (SB + B) / total × 100
+    const jumlahPct = vs.length ? ((cnt[4] + cnt[3]) / totalEm * 100).toFixed(2) : '0.00';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${r.lbl}</td>
+      <td style="text-align:center;background:#fffde7">${pct(4)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(3)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(2)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(1)}</td>
+      <td style="text-align:center;font-weight:700;background:#fffde7">${jumlahPct}</td>
+      <td style="color:var(--g400);font-size:11px;font-style:italic">—</td>
+    </tr>`;
   }).join('');
+
+  // Baris jumlah total (sum semua persen per kolom)
+  const totalRow = (() => {
+    const cols = [4,3,2,1].map(cat => {
+      const sum = ASPEK_LAM.reduce((s,_,i) => {
+        const k = `rtg_er${i+1}`;
+        const vs = em.map(e=>e[k]).filter(Boolean);
+        const cnt = {4:0,3:0,2:0,1:0};
+        vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
+        return s + (vs.length ? cnt[cat]/totalEm*100 : 0);
+      }, 0);
+      return sum.toFixed(2);
+    });
+    const sbSum = ASPEK_LAM.reduce((s,_,i)=>{
+      const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
+      const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
+      return s+(vs.length?(cnt[4]+cnt[3])/totalEm*100:0);
+    },0);
+    return `<tr style="background:var(--g50);font-weight:700">
+      <td colspan="2" style="text-align:center">Jumlah</td>
+      <td style="text-align:center;background:#fffde7">${cols[0]}</td>
+      <td style="text-align:center;background:#fffde7">${cols[1]}</td>
+      <td style="text-align:center;background:#fffde7">${cols[2]}</td>
+      <td style="text-align:center;background:#fffde7">${cols[3]}</td>
+      <td style="text-align:center;background:#fffde7">${sbSum.toFixed(2)}</td>
+      <td></td>
+    </tr>`;
+  })();
 
   const tungguCat = {
     'lt6' : al.filter(a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('Kurang dari 6'))).length,
@@ -155,12 +194,37 @@ async function renderLAM() {
   div.innerHTML = `
   <div class="info-box lam" style="margin-bottom:20px">
     <strong>📊 Tabel 2.7B — Kepuasan Pengguna Lulusan (${em.length} responden)</strong>
+    <span style="font-size:11px;color:var(--g500);margin-left:8px">Satuan: % dari total responden</span>
   </div>
-  <div class="tw" style="margin-bottom:24px">
-    <table class="dt">
-      <thead><tr><th>No</th><th>Aspek Kompetensi</th><th>Sangat Baik (4)</th><th>Baik (3)</th><th>Cukup (2)</th><th>Kurang (1)</th><th>Rata-rata</th></tr></thead>
-      <tbody>${t27b}</tbody>
+  <div class="tw" style="margin-bottom:24px;overflow-x:auto">
+    <table class="dt" style="min-width:700px">
+      <thead>
+        <tr>
+          <th rowspan="2" style="text-align:center;vertical-align:middle;width:30px">No</th>
+          <th rowspan="2" style="text-align:center;vertical-align:middle">Jenis Kemampuan</th>
+          <th colspan="4" style="text-align:center;background:#fffde7;color:#7c6f00">Tingkat Kepuasan Pengguna (%)</th>
+          <th rowspan="2" style="text-align:center;vertical-align:middle;background:#fffde7;color:#7c6f00;min-width:80px">Jumlah Persentase Kepuasan Pengguna (%)</th>
+          <th rowspan="2" style="text-align:center;vertical-align:middle;min-width:160px">Rencana Tindak Lanjut oleh UPPS/PS</th>
+        </tr>
+        <tr>
+          <th style="text-align:center;background:#fffde7;color:#7c6f00">Sangat Baik</th>
+          <th style="text-align:center;background:#fffde7;color:#7c6f00">Baik</th>
+          <th style="text-align:center;background:#fffde7;color:#7c6f00">Cukup</th>
+          <th style="text-align:center;background:#fffde7;color:#7c6f00">Kurang</th>
+        </tr>
+        <tr style="background:var(--g100);font-size:11px;color:var(--g500)">
+          <th style="text-align:center">1</th><th style="text-align:center">2</th>
+          <th style="text-align:center">3</th><th style="text-align:center">4</th>
+          <th style="text-align:center">5</th><th style="text-align:center">6</th>
+          <th style="text-align:center">7</th><th style="text-align:center">8</th>
+        </tr>
+      </thead>
+      <tbody>${t27b}${totalRow}</tbody>
     </table>
+    <p style="font-size:11px;color:var(--g500);margin-top:8px;font-style:italic">
+      * Jumlah Persentase Kepuasan = (Sangat Baik + Baik) / Total Responden × 100%.
+      Total responden: <strong>${em.length}</strong> pengguna lulusan.
+    </p>
   </div>
   <div class="info-box lam" style="margin-bottom:16px">
     <strong>📊 Tabel 2.8B1 — Waktu Tunggu Lulusan (${al.length} responden)</strong>
@@ -226,15 +290,43 @@ async function renderAnalisis() {
 function renderLAM27B(em) {
   const el = document.getElementById('sec-27b');
   if (!em.length) { el.innerHTML = '<div class="empty">Belum ada data pengguna lulusan.</div>'; return; }
+  const totalEm = em.length;
   const rows = ASPEK_LAM.map((r,i) => {
     const k  = `rtg_er${i+1}`;
     const vs = em.map(e=>e[k]).filter(Boolean);
-    const avg= vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2):'-';
-    return `<tr><td>${i+1}</td><td>${r.lbl}</td><td>${avg}</td></tr>`;
+    const cnt= {4:0,3:0,2:0,1:0};
+    vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
+    const pct = cat => vs.length ? (cnt[cat]/totalEm*100).toFixed(2) : '0.00';
+    const jumlahPct = vs.length ? ((cnt[4]+cnt[3])/totalEm*100).toFixed(2) : '0.00';
+    return `<tr>
+      <td style="text-align:center">${i+1}</td><td>${r.lbl}</td>
+      <td style="text-align:center;background:#fffde7">${pct(4)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(3)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(2)}</td>
+      <td style="text-align:center;background:#fffde7">${pct(1)}</td>
+      <td style="text-align:center;font-weight:700;background:#fffde7">${jumlahPct}</td>
+    </tr>`;
   }).join('');
-  el.innerHTML = `<div class="tw"><table class="dt">
-    <thead><tr><th>No</th><th>Aspek Kompetensi</th><th>Rata-rata</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;
+  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:600px">
+    <thead>
+      <tr>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">No</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jenis Kemampuan</th>
+        <th colspan="4" style="text-align:center;background:#fffde7;color:#7c6f00">Tingkat Kepuasan Pengguna (%)</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle;background:#fffde7;color:#7c6f00">Jumlah %<br>Kepuasan</th>
+      </tr>
+      <tr>
+        <th style="background:#fffde7;color:#7c6f00;text-align:center">Sangat Baik</th>
+        <th style="background:#fffde7;color:#7c6f00;text-align:center">Baik</th>
+        <th style="background:#fffde7;color:#7c6f00;text-align:center">Cukup</th>
+        <th style="background:#fffde7;color:#7c6f00;text-align:center">Kurang</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
+    Satuan: % dari ${totalEm} total responden pengguna lulusan. Jumlah % = (Sangat Baik + Baik) / Total × 100%.
+  </p></div>`;
 }
 
 function renderLAM27C(sk) {
@@ -1170,31 +1262,41 @@ export async function exportExcel() {
 
     // ── SHEET 5: TABEL 2.7B — KEPUASAN PENGGUNA LULUSAN ──
     {
+      const totalEm27b = em.length || 1;
       const header27b = [
-        ['TABEL 2.7B — KEPUASAN PENGGUNA LULUSAN (LAM PTIP IAPS 1.0)', '', '', '', '', '', ''],
-        [`Program Studi MSP FPIK UNSRAT · Jumlah Responden: ${em.length} · Dicetak: ${tgl}`, '', '', '', '', '', ''],
-        ['', '', '', '', '', '', ''],
-        ['No', 'Aspek Kompetensi (7 Aspek LAM PTIP)', 'Sangat Baik (4)', 'Baik (3)', 'Cukup (2)', 'Kurang (1)', 'Rata-rata'],
+        ['TABEL 2.7B — KEPUASAN PENGGUNA LULUSAN (LAM PTIP IAPS 1.0)', '', '', '', '', '', '', ''],
+        [`Program Studi MSP FPIK UNSRAT · Jumlah Responden: ${em.length} · Dicetak: ${tgl}`, '', '', '', '', '', '', ''],
+        [`Satuan: % dari total responden (${em.length} pengguna lulusan)`, '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['No', 'Jenis Kemampuan', 'Sangat Baik (%)', 'Baik (%)', 'Cukup (%)', 'Kurang (%)', 'Jumlah % Kepuasan (SB+B)', 'Rencana Tindak Lanjut UPPS/PS'],
+        ['1', '2', '3', '4', '5', '6', '7', '8'],
       ];
       const rows27b = ASPEK_LAM.map((r, i) => {
         const k  = `rtg_er${i+1}`;
-        const vs = em.map(e => e[k]).filter(Boolean);
-        const avg = vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : '-';
-        const cnt = { 4:0, 3:0, 2:0, 1:0 };
-        vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
-        return [i+1, r.lbl, cnt[4], cnt[3], cnt[2], cnt[1], parseFloat(avg)||0];
-      });
-      // Baris total/rata-rata keseluruhan
-      const allVals = em.length ? ASPEK_LAM.map((_,i) => {
-        const k = `rtg_er${i+1}`;
         const vs = em.map(e=>e[k]).filter(Boolean);
-        return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : 0;
-      }) : [];
-      const grandAvg = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length).toFixed(2) : '-';
-      rows27b.push(['', 'RATA-RATA KESELURUHAN', '', '', '', '', parseFloat(grandAvg)||0]);
-
-      const ws27b = XLSX.utils.aoa_to_sheet([...header27b, ...rows27b]);
-      ws27b['!cols'] = [{ wch:4 }, { wch:50 }, { wch:14 }, { wch:10 }, { wch:10 }, { wch:10 }, { wch:12 }];
+        const cnt= {4:0,3:0,2:0,1:0};
+        vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
+        const pct = cat => vs.length ? parseFloat((cnt[cat]/totalEm27b*100).toFixed(2)) : 0;
+        const jumlahPct = vs.length ? parseFloat(((cnt[4]+cnt[3])/totalEm27b*100).toFixed(2)) : 0;
+        return [i+1, r.lbl, pct(4), pct(3), pct(2), pct(1), jumlahPct, ''];
+      });
+      const jumlahRow = ['', 'Jumlah',
+        ...[4,3,2,1].map(cat =>
+          parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
+            const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
+            const cnt={4:0,3:0,2:0,1:0};vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
+            return s+(vs.length?cnt[cat]/totalEm27b*100:0);
+          },0).toFixed(2))
+        ),
+        parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
+          const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
+          const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
+          return s+(vs.length?(cnt[4]+cnt[3])/totalEm27b*100:0);
+        },0).toFixed(2)),
+        ''
+      ];
+      const ws27b = XLSX.utils.aoa_to_sheet([...header27b, ...rows27b, jumlahRow]);
+      ws27b['!cols'] = [{ wch:4 }, { wch:38 }, { wch:14 }, { wch:10 }, { wch:10 }, { wch:10 }, { wch:22 }, { wch:32 }];
       XLSX.utils.book_append_sheet(wb, ws27b, '2.7B Kepuasan Pengguna');
     }
 
