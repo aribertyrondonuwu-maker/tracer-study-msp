@@ -428,16 +428,20 @@ function build28B1Data(al) {
 
   const rows = getAllTahunLulus(al).map(yr => {
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
-    const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    // Terlacak = semua yang mengisi formulir (ada status)
+    const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
+    // Bekerja = hanya yang punya pekerjaan (untuk kolom WT)
+    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
     return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
-             lt6: terlacak.filter(isLt6).length, mid: terlacak.filter(is6_18).length, gt18: terlacak.filter(isGt18).length };
+             lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
   });
 
   const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
   if (noYr.length) {
-    const terlacak = noYr.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    const terlacak = noYr.filter(a => a.status && a.status.trim() !== '');
+    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
     rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
-                lt6: terlacak.filter(isLt6).length, mid: terlacak.filter(is6_18).length, gt18: terlacak.filter(isGt18).length });
+                lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length });
   }
 
   const tot = { jumlah: al.length,
@@ -454,16 +458,18 @@ function build28B2Data(al) {
 
   const rows = getAllTahunLulus(al).map(yr => {
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
-    const terlacak = grp.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
+    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
     return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
-             lok: terlacak.filter(isLok).length, nas: terlacak.filter(isNas).length, mul: terlacak.filter(isMul).length };
+             lok: bekerja.filter(isLok).length, nas: bekerja.filter(isNas).length, mul: bekerja.filter(isMul).length };
   });
 
   const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
   if (noYr.length) {
-    const terlacak = noYr.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi'));
+    const terlacak = noYr.filter(a => a.status && a.status.trim() !== '');
+    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
     rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
-                lok: terlacak.filter(isLok).length, nas: terlacak.filter(isNas).length, mul: terlacak.filter(isMul).length });
+                lok: bekerja.filter(isLok).length, nas: bekerja.filter(isNas).length, mul: bekerja.filter(isMul).length });
   }
 
   const tot = { jumlah: al.length,
