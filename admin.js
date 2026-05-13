@@ -168,30 +168,32 @@ async function renderLAM() {
     </tr>`;
   }).join('');
 
-  // Baris jumlah total (sum semua persen per kolom)
+  // Baris Jumlah: rata-rata persentase per kolom (sesuai format LKPS — bukan sum)
   const totalRow = (() => {
+    const n = ASPEK_LAM.length;
     const cols = [4,3,2,1].map(cat => {
-      const sum = ASPEK_LAM.reduce((s,_,i) => {
+      const avg = ASPEK_LAM.reduce((s,_,i) => {
         const k = `rtg_er${i+1}`;
         const vs = em.map(e=>e[k]).filter(Boolean);
         const cnt = {4:0,3:0,2:0,1:0};
         vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
         return s + (vs.length ? cnt[cat]/totalEm*100 : 0);
-      }, 0);
-      return sum.toFixed(2);
+      }, 0) / n;
+      return avg.toFixed(2);
     });
-    const sbSum = ASPEK_LAM.reduce((s,_,i)=>{
+    // Rata-rata Jumlah % Kepuasan (SB+B) per aspek
+    const avgJumlah = ASPEK_LAM.reduce((s,_,i)=>{
       const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
       const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
       return s+(vs.length?(cnt[4]+cnt[3])/totalEm*100:0);
-    },0);
+    },0) / n;
     return `<tr style="background:var(--g50);font-weight:700">
-      <td colspan="2" style="text-align:center">Jumlah</td>
+      <td colspan="2" style="text-align:center">Rata-rata</td>
       <td style="text-align:center;background:#fffde7">${cols[0]}</td>
       <td style="text-align:center;background:#fffde7">${cols[1]}</td>
       <td style="text-align:center;background:#fffde7">${cols[2]}</td>
       <td style="text-align:center;background:#fffde7">${cols[3]}</td>
-      <td style="text-align:center;background:#fffde7">${sbSum.toFixed(2)}</td>
+      <td style="text-align:center;background:#fffde7">${avgJumlah.toFixed(2)}</td>
       <td></td>
     </tr>`;
   })();
@@ -727,6 +729,27 @@ function render27CTable(sk, em) {
   const _em = em || _cache.em || [];
   const cfg = getSkConfig();
 
+  // ── Default populasi dari DATA_AKADEMIK bila belum diisi manual
+  //    Mahasiswa aktif → DATA_AKADEMIK.mahasiswa_aktif[tahun]
+  //    Dosen/Tendik/Mitra/Lainnya → diisi manual (tidak ada sumber otomatis)
+  //    Lulusan (TS-2) → total lulusan TS-4+TS-3+TS-2 dari data alumni di DB
+  //    Pengguna Lulusan → jumlah responden employer (seluruh populasi yang bisa disurvey tidak diketahui)
+  const defaultPop = {
+    Mahasiswa: {
+      TS2: DATA_AKADEMIK.mahasiswa_aktif[TAHUN_SURVEI.TS_2] || 0,
+      TS1: DATA_AKADEMIK.mahasiswa_aktif[TAHUN_SURVEI.TS_1] || 0,
+      TS : DATA_AKADEMIK.mahasiswa_aktif[TAHUN_SURVEI.TS]   || 0,
+    },
+  };
+
+  const getPopVal = (jKey, field, tahunKey) => {
+    // Prioritas: nilai yang sudah disimpan manual → default dari DATA_AKADEMIK → 0
+    const saved = parseInt(cfg[jKey]?.[field] || 0);
+    if (saved > 0) return saved;
+    const jLabel = JENIS_LIST.find(j => j.replace(/\s+/g,'_') === jKey) || '';
+    return defaultPop[jLabel]?.[tahunKey] || 0;
+  };
+
   // Header persis sesuai Tabel 2.7C LKPS LAM PTIP IAPS 1.0
   const headerRow = `
     <thead>
@@ -774,9 +797,9 @@ function render27CTable(sk, em) {
     const rTS1 = isPL ? 0 : skByJenis.filter(x => parseInt(x.tahun_survei) === TAHUN.TS1).length;
     const rTS  = isPL ? _em.length : skByJenis.filter(x => parseInt(x.tahun_survei) === TAHUN.TS).length;
 
-    const popTS2 = parseInt(c.popTS2 || 0);
-    const popTS1 = parseInt(c.popTS1 || 0);
-    const popTS  = parseInt(c.popTS  || 0);
+    const popTS2 = getPopVal(jKey, 'popTS2', 'TS2');
+    const popTS1 = getPopVal(jKey, 'popTS1', 'TS1');
+    const popTS  = getPopVal(jKey, 'popTS',  'TS');
 
     const pct = (r, p) => (p > 0 ? Math.round(r / p * 100) + '%' : '–');
 
@@ -840,25 +863,37 @@ function render27CTable(sk, em) {
           readonly title="Dihitung otomatis dari database (${rTS} responden tahun ${TAHUN.TS})">
       </td>
       <td style="text-align:center">
-        <span title="Populasi TS-2: ${popTS2 || 'belum diisi'}">${pct(rTS2, popTS2)}</span>
-        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS2||''}" placeholder="Pop."
+        <span title="Populasi TS-2 (${TAHUN.TS2}): ${popTS2 || 'belum diisi'}"
+              style="${popTS2 > 0 ? '' : 'color:#c0392b'}">
+          ${pct(rTS2, popTS2)}
+        </span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${(cfg[jKey]?.popTS2)||''}"
+          placeholder="${popTS2 > 0 ? popTS2 : 'Pop.'}"
           onchange="window._skCfgSave('${jKey}','popTS2',this.value)"
           style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
-          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS2}">` : ''}
+          title="Populasi ${j} TS-2 (${TAHUN.TS2})${popTS2>0&&!cfg[jKey]?.popTS2?' — dari DATA_AKADEMIK: '+popTS2:''}">` : ''}
       </td>
       <td style="text-align:center">
-        <span>${pct(rTS1, popTS1)}</span>
-        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS1||''}" placeholder="Pop."
+        <span title="Populasi TS-1 (${TAHUN.TS1}): ${popTS1 || 'belum diisi'}"
+              style="${popTS1 > 0 ? '' : 'color:#c0392b'}">
+          ${pct(rTS1, popTS1)}
+        </span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${(cfg[jKey]?.popTS1)||''}"
+          placeholder="${popTS1 > 0 ? popTS1 : 'Pop.'}"
           onchange="window._skCfgSave('${jKey}','popTS1',this.value)"
           style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
-          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS1}">` : ''}
+          title="Populasi ${j} TS-1 (${TAHUN.TS1})${popTS1>0&&!cfg[jKey]?.popTS1?' — dari DATA_AKADEMIK: '+popTS1:''}">` : ''}
       </td>
       <td style="text-align:center">
-        <span>${pct(rTS, popTS)}</span>
-        ${isSuperAdmin()?`<br><input type="number" min="0" value="${popTS||''}" placeholder="Pop."
+        <span title="Populasi TS (${TAHUN.TS}): ${popTS || 'belum diisi'}"
+              style="${popTS > 0 ? '' : 'color:#c0392b'}">
+          ${pct(rTS, popTS)}
+        </span>
+        ${isSuperAdmin()?`<br><input type="number" min="0" value="${(cfg[jKey]?.popTS)||''}"
+          placeholder="${popTS > 0 ? popTS : 'Pop.'}"
           onchange="window._skCfgSave('${jKey}','popTS',this.value)"
           style="width:52px;font-size:10px;margin-top:2px;border:1px dashed var(--g300);border-radius:4px;padding:1px;text-align:center"
-          title="Isi jumlah total populasi ${j} tahun ${TAHUN.TS}">` : ''}
+          title="Populasi ${j} TS (${TAHUN.TS})${popTS>0&&!cfg[jKey]?.popTS?' — dari DATA_AKADEMIK: '+popTS:''}">` : ''}
       </td>
       <td style="text-align:center">${cnt.SB||'–'}</td>
       <td style="text-align:center">${cnt.B||'–'}</td>
