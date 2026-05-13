@@ -152,10 +152,11 @@ async function renderLAM() {
     const vs  = em.map(e => e[k]).filter(Boolean);
     const cnt = { 4:0, 3:0, 2:0, 1:0 };
     vs.forEach(v => { const cat = v>=4?4:v>=3?3:v>=2?2:1; cnt[cat]++; });
-    // Persentase masing-masing kategori dari total responden
-    const pct = cat => vs.length ? (cnt[cat] / totalEm * 100).toFixed(2) : '0.00';
-    // Jumlah % kepuasan = (SB + B) / total × 100
-    const jumlahPct = vs.length ? ((cnt[4] + cnt[3]) / totalEm * 100).toFixed(2) : '0.00';
+    // Gunakan vs.length sebagai pembagi agar SB+B+C+K selalu = 100%
+    const base = vs.length || 1;
+    const pct = cat => vs.length ? (cnt[cat] / base * 100).toFixed(2) : '0.00';
+    // Jumlah % kepuasan = (SB + B) / vs.length × 100
+    const jumlahPct = vs.length ? ((cnt[4] + cnt[3]) / base * 100).toFixed(2) : '0.00';
     return `<tr>
       <td style="text-align:center">${i+1}</td>
       <td>${r.lbl}</td>
@@ -177,7 +178,8 @@ async function renderLAM() {
         const vs = em.map(e=>e[k]).filter(Boolean);
         const cnt = {4:0,3:0,2:0,1:0};
         vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
-        return s + (vs.length ? cnt[cat]/totalEm*100 : 0);
+        // Gunakan vs.length agar per-aspek = 100%
+        return s + (vs.length ? cnt[cat]/vs.length*100 : 0);
       }, 0) / n;
       return avg.toFixed(2);
     });
@@ -185,7 +187,7 @@ async function renderLAM() {
     const avgJumlah = ASPEK_LAM.reduce((s,_,i)=>{
       const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
       const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
-      return s+(vs.length?(cnt[4]+cnt[3])/totalEm*100:0);
+      return s+(vs.length?(cnt[4]+cnt[3])/vs.length*100:0);
     },0) / n;
     return `<tr style="background:var(--g50);font-weight:700">
       <td colspan="2" style="text-align:center">Rata-rata</td>
@@ -376,8 +378,10 @@ function renderLAM27B(em) {
     const vs = em.map(e=>e[k]).filter(Boolean);
     const cnt= {4:0,3:0,2:0,1:0};
     vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
-    const pct = cat => vs.length ? (cnt[cat]/totalEm*100).toFixed(2) : '0.00';
-    const jumlahPct = vs.length ? ((cnt[4]+cnt[3])/totalEm*100).toFixed(2) : '0.00';
+    // Gunakan vs.length sebagai pembagi agar SB+B+C+K = 100%
+    const base = vs.length || 1;
+    const pct = cat => vs.length ? (cnt[cat]/base*100).toFixed(2) : '0.00';
+    const jumlahPct = vs.length ? ((cnt[4]+cnt[3])/base*100).toFixed(2) : '0.00';
     return `<tr>
       <td style="text-align:center">${i+1}</td><td>${r.lbl}</td>
       <td style="text-align:center;background:#fffde7">${pct(4)}</td>
@@ -1674,8 +1678,9 @@ export async function exportExcel() {
         const vs = em.map(e=>e[k]).filter(Boolean);
         const cnt= {4:0,3:0,2:0,1:0};
         vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
-        const pct = cat => vs.length ? parseFloat((cnt[cat]/totalEm27b*100).toFixed(2)) : 0;
-        const jumlahPct = vs.length ? parseFloat(((cnt[4]+cnt[3])/totalEm27b*100).toFixed(2)) : 0;
+        const base = vs.length || 1;
+        const pct = cat => vs.length ? parseFloat((cnt[cat]/base*100).toFixed(2)) : 0;
+        const jumlahPct = vs.length ? parseFloat(((cnt[4]+cnt[3])/base*100).toFixed(2)) : 0;
         return [i+1, r.lbl, pct(4), pct(3), pct(2), pct(1), jumlahPct, ''];
       });
       const jumlahRow = ['', 'Jumlah',
@@ -1683,13 +1688,13 @@ export async function exportExcel() {
           parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
             const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
             const cnt={4:0,3:0,2:0,1:0};vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
-            return s+(vs.length?cnt[cat]/totalEm27b*100:0);
+            return s+(vs.length?cnt[cat]/vs.length*100:0);
           },0).toFixed(2))
         ),
         parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
           const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
           const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
-          return s+(vs.length?(cnt[4]+cnt[3])/totalEm27b*100:0);
+          return s+(vs.length?(cnt[4]+cnt[3])/vs.length*100:0);
         },0).toFixed(2)),
         ''
       ];
