@@ -76,7 +76,41 @@ export const TAHUN_LULUS_OPTIONS = [
   { value: 2023, label: 'TS-2 (2023)' },
 ];
 
-// ── Warna chart
+// ── Data Akademik Resmi (Tabel 2.8A LKPS) — diisi oleh Program Studi
+//    Jumlah Lulusan PER TAHUN LULUS (bukan tahun masuk!)
+//    Sumber: data wisuda/yudisium dari bagian akademik FPIK UNSRAT
+//    ⚠️  Perbarui nilai ini setiap siklus akreditasi
+//
+//    CATATAN: Mahasiswa masuk 2021 (TS-4) umumnya lulus ~2025 (TS),
+//    sehingga "jumlah lulusan tahun X" ≠ "jumlah mahasiswa masuk tahun X".
+//    Kolom "Jumlah Mahasiswa Baru" di Tabel 2.8A berbeda dengan "Jumlah Lulusan"
+//    di Tabel 2.8B. Isi nilai di bawah sesuai data wisuda yang sesungguhnya.
+export const DATA_AKADEMIK = {
+  // Jumlah lulusan per tahun kalender wisuda/yudisium
+  // Sesuai LKPS Tabel 2.8B1 & 2.8B2 (TS-4 s.d. TS-2, untuk TS=2025)
+  jumlah_lulusan: {
+    [2021]: 0,   // TS-4 — isi sesuai data wisuda 2021
+    [2022]: 0,   // TS-3 — isi sesuai data wisuda 2022
+    [2023]: 0,   // TS-2 — isi sesuai data wisuda 2023
+  },
+  // Data dari Tabel 2.8A (mahasiswa aktif & mahasiswa baru) — untuk referensi
+  mahasiswa_aktif: {
+    [2021]: 131,   // TS-4
+    [2022]: 124,   // TS-3
+    [2023]: 120,   // TS-2
+    [2024]: 122,   // TS-1
+    [2025]: 119,   // TS
+  },
+  mahasiswa_baru: {
+    [2021]: 23,    // TS-4
+    [2022]: 19,    // TS-3
+    [2023]: 35,    // TS-2
+    [2024]: 40,    // TS-1
+    [2025]: 27,    // TS
+  },
+};
+
+
 export const CHART_COLORS = [
   '#003D5B','#006D77','#C5973A','#1B7A4A',
   '#7B5EA7','#C0392B','#17809B','#D97706','#2563EB','#834F00',

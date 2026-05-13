@@ -8,7 +8,7 @@
 import { db }       from './db.js';
 import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER,
          ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
-         TAB_ACCESS, ROLE, TAHUN_SURVEI, TAHUN_TRACER } from './config.js';
+         TAB_ACCESS, ROLE, TAHUN_SURVEI, TAHUN_TRACER, DATA_AKADEMIK } from './config.js';
 import { getUser, isSuperAdmin } from './auth.js';
 import { ASPEK_KEPUASAN } from './stakeholder.js';
 
@@ -254,7 +254,9 @@ async function renderLAM() {
       const { rows: r81, tot: t81 } = build28B1Data(al);
       const mkR = (r, bold) => `<tr${bold?' style="font-weight:700;background:var(--g50)"':''}>
         <td style="text-align:center">${r.label}</td>
-        <td style="text-align:center">${r.jumlah}</td>
+        <td style="text-align:center${!bold && !r.jumlahIsResmi ? ';color:#c0392b;font-style:italic' : ''}">
+          ${r.jumlah || 0}${!bold && !r.jumlahIsResmi ? '<sup title="Isi DATA_AKADEMIK.jumlah_lulusan di config.js">⚠️</sup>' : ''}
+        </td>
         <td style="text-align:center">${r.terlacak}</td>
         <td style="text-align:center;background:#fffde7">${r.lt6}</td>
         <td style="text-align:center;background:#fffde7">${r.mid}</td>
@@ -293,10 +295,13 @@ async function renderLAM() {
   </div>
   <div class="tw" style="overflow-x:auto">
     ${(() => {
-      const { rows: r28, tot: t28 } = build28B2Data(al);
+      const alFiltered = al.filter(a => { const yr=parseInt(a.lulus); return yr>=TAHUN_TRACER.TS_4 && yr<=TAHUN_TRACER.TS_2; });
+      const { rows: r28, tot: t28 } = build28B2Data(alFiltered);
       const mkR = (r, bold) => `<tr${bold?' style="font-weight:700;background:var(--g50)"':''}>
         <td style="text-align:center">${r.label}</td>
-        <td style="text-align:center">${r.jumlah||0}</td>
+        <td style="text-align:center${!bold && !r.jumlahIsResmi ? ';color:#c0392b;font-style:italic' : ''}">
+          ${r.jumlah||0}${!bold && !r.jumlahIsResmi ? '<sup title="Isi DATA_AKADEMIK.jumlah_lulusan di config.js">⚠️</sup>' : ''}
+        </td>
         <td style="text-align:center">${r.terlacak||0}</td>
         <td style="text-align:center;background:#fffde7">${r.lok||0}</td>
         <td style="text-align:center;background:#fffde7">${r.nas||0}</td>
@@ -456,74 +461,158 @@ function labelTahun(yr) {
   return d === 0 ? `TS (${yr})` : d > 0 ? `TS-${d} (${yr})` : `TS+${Math.abs(d)} (${yr})`;
 }
 
-// ── Helper: 2.8B1 — SEMUA tahun dari data
+// ── Helper: 2.8B1 — HANYA TS-4, TS-3, TS-2 (sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b1)
 function build28B1Data(al) {
   const isLt6  = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6'));
   const is6_18 = a => a.tunggu && (a.tunggu.includes('6 –') || a.tunggu.includes('6 -') || a.tunggu.includes('6-') || a.tunggu.includes('6 ≤'));
   const isGt18 = a => a.tunggu && (a.tunggu.includes('> 18') || a.tunggu.includes('>18'));
 
-  const rows = getAllTahunLulus(al).map(yr => {
+  // Hanya 3 tahun sesuai LKPS: TS-4, TS-3, TS-2
+  const TAHUN_LIST = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
+  const TS = TAHUN_SURVEI.TS;
+
+  const rows = TAHUN_LIST.map(yr => {
+    const d        = TS - yr;
+    const lbl      = `TS-${d} (${yr})`;
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
+    // Jumlah Lulusan RESMI dari data akademik (Tabel 2.6/2.8A), bukan dari count responden
+    // Jika belum diisi di DATA_AKADEMIK, fallback ke count responden + tanda (*)
+    const jumlahResmi = DATA_AKADEMIK.jumlah_lulusan[yr] || null;
+    const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
+      ? jumlahResmi
+      : grp.length;  // fallback: jumlah responden (tandai sebagai estimasi)
     // Terlacak = semua yang mengisi formulir (ada status)
     const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
     // Bekerja = hanya yang punya pekerjaan (untuk kolom WT)
     const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
-    return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
+    return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
+             terlacak: terlacak.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
   });
 
-  const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
-  if (noYr.length) {
-    const terlacak = noYr.filter(a => a.status && a.status.trim() !== '');
-    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
-    rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
-                lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length });
-  }
-
-  const tot = { jumlah: al.length,
-    terlacak: rows.reduce((s,r)=>s+r.terlacak,0), lt6: rows.reduce((s,r)=>s+r.lt6,0),
-    mid: rows.reduce((s,r)=>s+r.mid,0), gt18: rows.reduce((s,r)=>s+r.gt18,0) };
+  const tot = {
+    jumlah   : rows.reduce((s,r)=>s+r.jumlah,0),
+    terlacak : rows.reduce((s,r)=>s+r.terlacak,0),
+    lt6      : rows.reduce((s,r)=>s+r.lt6,0),
+    mid      : rows.reduce((s,r)=>s+r.mid,0),
+    gt18     : rows.reduce((s,r)=>s+r.gt18,0),
+  };
   return { rows, tot };
 }
 
-// ── Helper: 2.8B2 — SEMUA tahun dari data
+// ── Helper: 2.8B2 — HANYA TS-4, TS-3, TS-2 (sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b2)
 function build28B2Data(al) {
   const isLok = a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal');
   const isNas = a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional');
   const isMul = a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'));
 
-  const rows = getAllTahunLulus(al).map(yr => {
+  // Hanya 3 tahun sesuai LKPS: TS-4, TS-3, TS-2
+  const TAHUN_LIST = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
+  const TS = TAHUN_SURVEI.TS;
+
+  const rows = TAHUN_LIST.map(yr => {
+    const d        = TS - yr;
+    const lbl      = `TS-${d} (${yr})`;
     const grp      = al.filter(a => parseInt(a.lulus) === yr);
+    // Jumlah Lulusan RESMI dari data akademik (Tabel 2.6/2.8A)
+    const jumlahResmi = DATA_AKADEMIK.jumlah_lulusan[yr] || null;
+    const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
+      ? jumlahResmi
+      : grp.length;
     const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
     const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
-    return { label: labelTahun(yr), jumlah: grp.length, terlacak: terlacak.length,
+    return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
+             terlacak: terlacak.length,
              lok: bekerja.filter(isLok).length, nas: bekerja.filter(isNas).length, mul: bekerja.filter(isMul).length };
   });
 
-  const noYr = al.filter(a => !a.lulus || isNaN(parseInt(a.lulus)));
-  if (noYr.length) {
-    const terlacak = noYr.filter(a => a.status && a.status.trim() !== '');
-    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
-    rows.push({ label: '(Tahun tidak diisi)', jumlah: noYr.length, terlacak: terlacak.length,
-                lok: bekerja.filter(isLok).length, nas: bekerja.filter(isNas).length, mul: bekerja.filter(isMul).length });
-  }
-
-  const tot = { jumlah: al.length,
-    terlacak: rows.reduce((s,r)=>s+r.terlacak,0), lok: rows.reduce((s,r)=>s+r.lok,0),
-    nas: rows.reduce((s,r)=>s+r.nas,0), mul: rows.reduce((s,r)=>s+r.mul,0) };
+  const tot = {
+    jumlah   : rows.reduce((s,r)=>s+r.jumlah,0),
+    terlacak : rows.reduce((s,r)=>s+r.terlacak,0),
+    lok      : rows.reduce((s,r)=>s+r.lok,0),
+    nas      : rows.reduce((s,r)=>s+r.nas,0),
+    mul      : rows.reduce((s,r)=>s+r.mul,0),
+  };
   return { rows, tot };
 }
 
-function renderLAM28B2(al) {
-  const el = document.getElementById('sec-28b2');
+function renderLAM28B1(al) {
+  const el = document.getElementById('sec-28b1');
+  if (!el) return;
   if (!al.length) { el.innerHTML = '<div class="empty">Belum ada data alumni.</div>'; return; }
 
-  const { rows, tot } = build28B2Data(al);
+  const { rows, tot } = build28B1Data(al);
+
+  const mkRow = (r, isTot=false) => `
+    <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
+      <td style="text-align:center">${r.label}</td>
+      <td style="text-align:center${!isTot && !r.jumlahIsResmi ? ';color:#c0392b;font-style:italic' : ''}">
+        ${r.jumlah || 0}${!isTot && !r.jumlahIsResmi ? '<sup title="Belum diisi di DATA_AKADEMIK — tampilkan jumlah responden sebagai estimasi">⚠️</sup>' : ''}
+      </td>
+      <td style="text-align:center">${r.terlacak || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.lt6 || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.mid || 0}</td>
+      <td style="text-align:center;background:#fffde7">${r.gt18 || 0}</td>
+    </tr>`;
+  const isLt6 = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6'));
+  const alFiltered = al.filter(a => {
+    const yr = parseInt(a.lulus);
+    return yr >= TAHUN_TRACER.TS_4 && yr <= TAHUN_TRACER.TS_2;
+  });
+  const bekerja    = alFiltered.filter(a => a.status && a.status.includes('Bekerja'));
+  const pctLt6     = bekerja.length ? Math.round(bekerja.filter(isLt6).length / bekerja.length * 100) : 0;
+
+  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
+    <thead>
+      <tr>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+        <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan yang Terlacak</th>
+        <th colspan="3" style="text-align:center;background:#fffde7;color:#7c6f00">Jumlah Lulusan Terlacak dengan Waktu Tunggu<br>Mendapatkan Pekerjaan</th>
+      </tr>
+      <tr>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &lt; 6 bulan</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">6 ≤ WT ≤ 18 bulan</th>
+        <th style="text-align:center;background:#fffde7;color:#7c6f00">WT &gt; 18 bulan</th>
+      </tr>
+      <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
+        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => mkRow(r)).join('')}
+      ${mkRow({ label:'Jumlah', ...tot }, true)}
+    </tbody>
+  </table>
+  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
+    * Hanya mencakup alumni TS-4 s.d. TS-2 (${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}) sesuai LKPS LAM PTIP IAPS 1.0.<br>
+    ⚠️ = Jumlah Lulusan belum diisi di <code>DATA_AKADEMIK.jumlah_lulusan</code> (config.js) — tampil jumlah responden sebagai estimasi.
+    Isi dengan data wisuda resmi dari bagian akademik untuk keakuratan Tabel 2.8B.
+  </p>
+  <div class="info-box" style="margin-top:10px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:6px;font-size:12px">
+    <strong>WT1</strong> (% lulusan dengan WT &lt; 6 bulan dari yang bekerja) = <strong>${pctLt6}%</strong>
+  </div></div>`;
+}
+
+
+function renderLAM28B2(al) {
+  const el = document.getElementById('sec-28b2');
+  if (!el) return;
+  // Filter hanya alumni TS-4 s.d. TS-2 sesuai LKPS LAM PTIP IAPS 1.0
+  const alFiltered = al.filter(a => {
+    const yr = parseInt(a.lulus);
+    return yr >= TAHUN_TRACER.TS_4 && yr <= TAHUN_TRACER.TS_2;
+  });
+  if (!alFiltered.length) { el.innerHTML = '<div class="empty">Belum ada data alumni untuk periode TS-4 s.d. TS-2.</div>'; return; }
+
+  const { rows, tot } = build28B2Data(alFiltered);
 
   const mkRow = (r, isTot=false) => `
     <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
       <td style="text-align:center${isTot?';font-weight:700':''}">${r.label}</td>
-      <td style="text-align:center">${r.jumlah || 0}</td>
+      <td style="text-align:center${!isTot && !r.jumlahIsResmi ? ';color:#c0392b;font-style:italic' : ''}">
+        ${r.jumlah || 0}${!isTot && !r.jumlahIsResmi ? '<sup title="Belum diisi di DATA_AKADEMIK — tampilkan jumlah responden sebagai estimasi">⚠️</sup>' : ''}
+      </td>
       <td style="text-align:center">${r.terlacak || 0}</td>
       <td style="text-align:center;background:#fffde7">${r.lok || 0}</td>
       <td style="text-align:center;background:#fffde7">${r.nas || 0}</td>
@@ -553,7 +642,8 @@ function renderLAM28B2(al) {
     </tbody>
   </table>
   <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
-    * TS = Tahun Survei (${TAHUN_SURVEI.TS}). Hanya mencakup alumni 3 tahun terakhir sesuai format LKPS LAM PTIP IAPS 1.0.
+    * Hanya mencakup alumni TS-4 s.d. TS-2 (${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}) sesuai LKPS LAM PTIP IAPS 1.0.<br>
+    ⚠️ = Jumlah Lulusan belum diisi di <code>DATA_AKADEMIK.jumlah_lulusan</code> (config.js) — tampil jumlah responden sebagai estimasi.
   </p></div>`;
 }
 
