@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════
 
 import { db }            from './db.js';
-import { TBL_EMPLOYER, ASPEK_LAM } from './config.js';
+import { TBL_EMPLOYER, ASPEK_LAM, TAHUN_TRACER } from './config.js';
 import { vv, rad, getR, buildRatings, requireFields, requireRadio, hideInlineError } from './form.js';
 import { router }        from './app.js';
 
@@ -44,6 +44,41 @@ export function eNext(from) {
     case 1:
       hideInlineError('e-s1');
       if (!requireFields(['e-inst','e-sektor','e-kota','e-pengisi','e-jabpengisi','e-email'])) return;
+
+      // ── Validasi tahun lulus alumni yang dinilai
+      //    Sesuai LKPS IAPS 1.0 LAM PTIP Tabel 2.7b — TS-4 s.d. TS-2
+      {
+        const tl = vv('e-alum-tahun-lulus');
+        if (tl) {
+          const tlInt = parseInt(tl);
+          if (isNaN(tlInt) || tlInt < TAHUN_TRACER.TS_4 || tlInt > TAHUN_TRACER.TS_2) {
+            const stepEl = document.getElementById('e-s1');
+            if (stepEl) {
+              let errEl = document.getElementById('e-s1-val-err');
+              if (!errEl) {
+                const fnav = stepEl.querySelector('.fnav');
+                if (fnav) {
+                  errEl = document.createElement('div');
+                  errEl.id = 'e-s1-val-err';
+                  errEl.className = 'info-box err';
+                  errEl.style.marginTop = '16px';
+                  fnav.parentElement.insertBefore(errEl, fnav);
+                }
+              }
+              if (errEl) {
+                errEl.innerHTML = `<strong>⚠️ Tahun lulus alumni di luar cakupan survei.</strong><br>
+                  Kepuasan pengguna lulusan hanya mencakup alumni yang lulus
+                  <strong>${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}</strong>
+                  (TS-4 s.d. TS-2), sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.7b.`;
+                errEl.style.display = 'block';
+              }
+            }
+            document.getElementById('e-alum-tahun-lulus')?.closest('.f')?.classList.add('f-err');
+            document.getElementById('e-alum-tahun-lulus')?.scrollIntoView({ behavior:'smooth', block:'center' });
+            return;
+          }
+        }
+      }
       return eGo(2);
 
     case 2: {
@@ -102,6 +137,9 @@ export async function submitEmployer() {
     telp        : vv('e-telp'),
     alumni_nama : vv('e-alum'),
     alumni_jab  : vv('e-alum-jab'),
+    // ── Field baru: tahun lulus alumni yang dinilai (wajib untuk Tabel 2.7b)
+    //    Sesuai LKPS IAPS 1.0 LAM PTIP — harus dari TS-4 s.d. TS-2
+    alumni_tahun_lulus : vv('e-alum-tahun-lulus') ? parseInt(vv('e-alum-tahun-lulus')) : null,
     lama        : vv('e-lama'),
     // 7 Aspek LAM PTIP Tabel 2.7B
     rtg_er1 : getR('er1'), rtg_er2 : getR('er2'), rtg_er3 : getR('er3'),

@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════
 
 import { db }            from './db.js';
-import { TBL_ALUMNI, ASPEK_PRODI } from './config.js';
+import { TBL_ALUMNI, ASPEK_PRODI, TAHUN_TRACER } from './config.js';
 import { vv, rad, chk, getR, buildRatings, requireFields, validateStep, requireRadio, hideInlineError } from './form.js';
 import { router }        from './app.js';
 
@@ -39,13 +39,56 @@ export function aGo(step) {
   window.scrollTo(0, 0);
 }
 
+// ── Helper: tampilkan pesan error tahun di dalam step
+function _showYearError(stepId, errId, html) {
+  const stepEl = document.getElementById(stepId);
+  if (!stepEl) return;
+  let errEl = document.getElementById(errId);
+  if (!errEl) {
+    const fnav = stepEl.querySelector('.fnav');
+    if (fnav) {
+      errEl = document.createElement('div');
+      errEl.id = errId;
+      errEl.className = 'info-box err';
+      errEl.style.marginTop = '16px';
+      fnav.parentElement.insertBefore(errEl, fnav);
+    }
+  }
+  if (errEl) { errEl.innerHTML = html; errEl.style.display = 'block'; }
+}
+
 // ── Validasi & lanjut per langkah
 export function aNext(from) {
   switch (from) {
-    case 1:
+    case 1: {
       hideInlineError('a-s1');
       if (!requireFields(['a-nama','a-nim','a-masuk','a-lulus','a-email','a-gender'])) return;
+
+      // ── Validasi tahun lulus: hanya alumni TS-4 s.d. TS-2 yang disurvey
+      //    Sesuai LKPS IAPS 1.0 LAM PTIP Tabel 2.8b1 (Program Sarjana)
+      const tahunLulus = parseInt(vv('a-lulus'));
+      if (isNaN(tahunLulus)) {
+        _showYearError('a-s1', 'a-s1-val-err',
+          '<strong>⚠️ Tahun lulus tidak valid.</strong><br>Masukkan tahun lulus dalam format angka (contoh: 2022).');
+        document.getElementById('a-lulus')?.closest('.f')?.classList.add('f-err');
+        return;
+      }
+      if (tahunLulus < TAHUN_TRACER.TS_4 || tahunLulus > TAHUN_TRACER.TS_2) {
+        _showYearError('a-s1', 'a-s1-val-err',
+          `<strong>⚠️ Tahun lulus di luar cakupan survei.</strong><br>
+           Formulir ini hanya untuk alumni yang lulus
+           <strong>${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}</strong>
+           (TS-4 s.d. TS-2), sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b1.<br>
+           <span style="font-size:11px;color:var(--g500)">
+             Alumni lulus ${TAHUN_TRACER.TS_2 + 1} (TS-1) atau ${TAHUN_TRACER.TS_2 + 2} (TS)
+             belum termasuk dalam periode tracer study ini.
+           </span>`);
+        document.getElementById('a-lulus')?.closest('.f')?.classList.add('f-err');
+        document.getElementById('a-lulus')?.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
       return aGo(2);
+    }
 
     case 2: {
       hideInlineError('a-s2');

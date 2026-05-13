@@ -537,12 +537,12 @@ table.dt tr:hover td{background:var(--g50);}
         <div class="pk-desc">Formulir ini diisi oleh <strong>lulusan / alumni</strong> Program Studi S1 Manajemen Sumber Daya Perairan (MSP) FPIK UNSRAT, baik yang sudah bekerja, melanjutkan studi, maupun yang belum bekerja.</div>
         <div class="pk-tahun">
           <strong>📅 Alumni Tahun Lulus:</strong><br>
-          TS-2 (lulus 2023), TS-1 (lulus 2024), dan TS (lulus 2025).<br>
-          <em>Termasuk alumni yang lulus di luar rentang ini dipersilakan mengisi.</em>
+          <strong>TS-4 (lulus 2021), TS-3 (lulus 2022), dan TS-2 (lulus 2023).</strong><br>
+          <em style="color:#c0392b">Alumni yang lulus 2024 (TS-1) atau 2025 (TS) belum termasuk dalam periode tracer study ini.</em>
         </div>
         <ul class="pk-list" style="margin-top:10px">
           <li><strong>Data yang diminta:</strong> Identitas diri, riwayat pekerjaan, waktu tunggu kerja, kesesuaian bidang pekerjaan, dan penilaian kompetensi.</li>
-          <li><strong>Tujuan:</strong> Mengisi data Tabel 2.8B1 (Waktu Tunggu) &amp; Tabel 2.8B2 (Kesesuaian Bidang Kerja) pada LKPS LAM PTIP.</li>
+          <li><strong>Tujuan:</strong> Mengisi data Tabel 2.8B1 (Waktu Tunggu) &amp; Tabel 2.8B2 (Kesesuaian Bidang Kerja) pada LKPS LAM PTIP IAPS 1.0.</li>
         </ul>
         <span class="pk-tag">Tabel 2.8B1 &amp; 2.8B2</span>
       </div>
@@ -559,7 +559,12 @@ table.dt tr:hover td{background:var(--g50);}
         </div>
         <div class="pk-tahun">
           <strong>📋 Yang dinilai:</strong><br>
-          Kinerja dan kompetensi alumni MSP yang bekerja di instansi Anda — berdasarkan 7 aspek kompetensi LAM PTIP.
+          Kinerja dan kompetensi alumni MSP yang bekerja di instansi Anda — berdasarkan 7 aspek kompetensi LAM PTIP.<br>
+          <span style="display:inline-block;margin-top:5px;font-size:11.5px">
+            <strong>Alumni yang dapat dinilai:</strong> yang lulus
+            <strong>2021 (TS-4), 2022 (TS-3), atau 2023 (TS-2)</strong>,
+            sesuai periode Tabel 2.7B LKPS LAM PTIP IAPS 1.0.
+          </span>
         </div>
         <ul class="pk-list" style="margin-top:10px">
           <li><strong>Data yang diminta:</strong> Identitas instansi, nama alumni yang dinilai, dan penilaian terhadap 7 aspek kompetensi lulusan (integritas, profesionalisme, bahasa asing, TI, komunikasi, kerjasama tim, pengembangan diri).</li>
@@ -891,6 +896,25 @@ table.dt tr:hover td{background:var(--g50);}
       <div class="f"><label>Jabatan Alumni di Instansi Anda</label><input id="e-alum-jab" type="text" placeholder="Jabatan alumni saat ini"></div>
       <div class="f"><label>Lama Bekerja di Instansi</label>
         <select id="e-lama"><option value="">-- Pilih --</option><option>Kurang dari 1 tahun</option><option>1 – 2 tahun</option><option>2 – 5 tahun</option><option>Lebih dari 5 tahun</option></select>
+      </div>
+    </div>
+    <div class="f">
+      <label for="e-alum-tahun-lulus">
+        Tahun Lulus Alumni yang Anda Nilai
+        <span style="font-size:11px;color:var(--g500);font-weight:400;display:block;margin-top:2px">
+          Sesuai periode Tabel 2.7B LAM PTIP: TS-4 s.d. TS-2 (alumni lulus 2021–2023)
+        </span>
+      </label>
+      <select id="e-alum-tahun-lulus">
+        <option value="">— Pilih tahun lulus alumni —</option>
+        <option value="2021">TS-4 (Lulus 2021)</option>
+        <option value="2022">TS-3 (Lulus 2022)</option>
+        <option value="2023">TS-2 (Lulus 2023)</option>
+      </select>
+      <div style="font-size:11px;color:var(--g500);margin-top:5px;padding:7px 11px;
+                  background:var(--g50);border-radius:6px;border-left:3px solid var(--teal)">
+        ℹ️ Data kepuasan pengguna lulusan (Tabel 2.7B LKPS LAM PTIP IAPS 1.0) hanya mencakup
+        alumni yang lulus 3 tahun sebelum tahun survei (TS-4 s.d. TS-2 = 2021, 2022, 2023).
       </div>
     </div>
     <div class="fnav"><button class="btn-n" onclick="_eNext(1)">Lanjut →</button></div>
@@ -1396,7 +1420,7 @@ table.dt tr:hover td{background:var(--g50);}
         </div>
       </div>
       <div class="tw"><table class="dt">
-        <thead><tr><th>Instansi</th><th>Sektor</th><th>Kota</th><th>Pengisi</th><th>Email</th><th>Alumni</th><th>Kepuasan</th><th>Rekrut</th><th>Waktu Isi</th><th class="delete-only-superadmin">Aksi</th></tr></thead>
+        <thead><tr><th>Instansi</th><th>Sektor</th><th>Kota</th><th>Pengisi</th><th>Email</th><th>Alumni</th><th style="text-align:center">Thn Lulus Alumni</th><th>Kepuasan</th><th>Rekrut</th><th>Waktu Isi</th><th class="delete-only-superadmin">Aksi</th></tr></thead>
         <tbody id="tb-em"></tbody>
       </table></div>
     </div>

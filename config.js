@@ -60,6 +60,22 @@ export const TAHUN_OPTIONS = [
   { value: 2023, label: 'TS-2 (2023)' },
 ];
 
+// ── Tahun Tracer Study & Kepuasan Pengguna Lulusan (Program Sarjana)
+//    Sesuai LKPS IAPS 1.0 LAM PTIP: data diambil dari TS-4 s.d. TS-2
+//    Tabel 2.8b1 (Waktu Tunggu) & Tabel 2.7b (Kepuasan Pengguna)
+export const TAHUN_TRACER = {
+  TS_4 : 2021,   // batas paling awal
+  TS_3 : 2022,
+  TS_2 : 2023,   // batas paling akhir yang boleh disurvey
+};
+
+// Opsi tahun lulus alumni untuk formulir alumni & employer
+export const TAHUN_LULUS_OPTIONS = [
+  { value: 2021, label: 'TS-4 (2021)' },
+  { value: 2022, label: 'TS-3 (2022)' },
+  { value: 2023, label: 'TS-2 (2023)' },
+];
+
 // ── Warna chart
 export const CHART_COLORS = [
   '#003D5B','#006D77','#C5973A','#1B7A4A',

@@ -8,7 +8,7 @@
 import { db }       from './db.js';
 import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER,
          ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
-         TAB_ACCESS, ROLE, TAHUN_SURVEI } from './config.js';
+         TAB_ACCESS, ROLE, TAHUN_SURVEI, TAHUN_TRACER } from './config.js';
 import { getUser, isSuperAdmin } from './auth.js';
 import { ASPEK_KEPUASAN } from './stakeholder.js';
 
@@ -362,6 +362,8 @@ function renderLAM27B(em) {
   const el = document.getElementById('sec-27b');
   if (!em.length) { el.innerHTML = '<div class="empty">Belum ada data pengguna lulusan.</div>'; return; }
   const totalEm = em.length;
+
+  // ── Baris per aspek
   const rows = ASPEK_LAM.map((r,i) => {
     const k  = `rtg_er${i+1}`;
     const vs = em.map(e=>e[k]).filter(Boolean);
@@ -378,7 +380,40 @@ function renderLAM27B(em) {
       <td style="text-align:center;font-weight:700;background:#fffde7">${jumlahPct}</td>
     </tr>`;
   }).join('');
-  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:600px">
+
+  // ── Info jumlah responden per tahun lulus alumni (konsistensi Tabel 2.6 & 2.8b)
+  const TS = TAHUN_SURVEI.TS;
+  const TAHUN_LIST = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
+  const labelTh = yr => `TS-${TS-yr} (${yr})`;
+  const perTahun = TAHUN_LIST.map(yr => {
+    const n = em.filter(e => parseInt(e.alumni_tahun_lulus) === yr).length;
+    return `<span style="display:inline-block;margin:0 6px;padding:3px 10px;border-radius:6px;
+              background:${n>0?'var(--teal)':'var(--g100)'};color:${n>0?'#fff':'var(--g400)'};font-size:11px">
+              ${labelTh(yr)}: <strong>${n}</strong>
+            </span>`;
+  }).join('');
+  const tidakDiisi = em.filter(e => !e.alumni_tahun_lulus).length;
+
+  el.innerHTML = `
+    <div class="info-box" style="margin-bottom:12px;padding:10px 14px;background:var(--g50);
+      border-radius:8px;border-left:3px solid var(--teal)">
+      <strong style="font-size:12px">📋 Responden per Tahun Lulus Alumni (Tabel 2.7b)</strong>
+      <div style="margin-top:6px">${perTahun}
+        ${tidakDiisi > 0
+          ? `<span style="display:inline-block;margin:0 6px;padding:3px 10px;border-radius:6px;
+              background:#fff3cd;color:#856404;font-size:11px">
+              Tahun tidak diisi: <strong>${tidakDiisi}</strong>
+              <span style="font-size:10px"> — data lama (sebelum perbaikan formulir)</span>
+            </span>`
+          : ''}
+      </div>
+      <p style="margin:6px 0 0;font-size:11px;color:var(--g500)">
+        Sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.7b: mencakup alumni lulus
+        ${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2} (TS-4 s.d. TS-2).
+        Responden = atasan/HRD, bukan alumni sendiri.
+      </p>
+    </div>
+    <div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:600px">
     <thead>
       <tr>
         <th rowspan="2" style="text-align:center;vertical-align:middle">No</th>
@@ -396,7 +431,8 @@ function renderLAM27B(em) {
     <tbody>${rows}</tbody>
   </table>
   <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
-    Satuan: % dari ${totalEm} total responden pengguna lulusan. Jumlah % = (Sangat Baik + Baik) / Total × 100%.
+    Satuan: % dari ${totalEm} total responden pengguna lulusan.
+    Jumlah % = (Sangat Baik + Baik) / Total × 100%.
   </p></div>`;
 }
 
@@ -564,6 +600,11 @@ async function renderTableEmployer() {
         <td><strong>${e.instansi}</strong></td><td>${e.sektor}</td>
         <td>${e.kota}</td><td>${e.pengisi}</td><td>${e.email}</td>
         <td>${e.alumni_nama||'–'}</td>
+        <td style="text-align:center">
+          ${e.alumni_tahun_lulus
+            ? `<span class="bdg bgt">${e.alumni_tahun_lulus}</span>`
+            : '<span style="color:var(--g400);font-size:11px">–</span>'}
+        </td>
         <td><span class="bdg bgg">${e.kepuasan||'–'}</span></td>
         <td>${e.rekrut||'–'}</td>
         <td style="font-size:10.5px;white-space:nowrap">${new Date(e.created_at).toLocaleString('id-ID')}</td>
@@ -573,7 +614,7 @@ async function renderTableEmployer() {
             Hapus
           </button>
         </td></tr>`).join('')
-    : '<tr><td colspan="10"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
+    : '<tr><td colspan="11"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
 }
 
 // ════════════════════════════════════════════════════════
@@ -1893,6 +1934,7 @@ export async function saveAsExcel(type) {
       'Instansi': e.instansi||'', 'Sektor': e.sektor||'', 'Kota': e.kota||'',
       'Pengisi': e.pengisi||'', 'Jabatan': e.jab_pengisi||'', 'Email': e.email||'',
       'Telp': e.telp||'', 'Alumni': e.alumni_nama||'', 'Jab Alumni': e.alumni_jab||'',
+      'Tahun Lulus Alumni': e.alumni_tahun_lulus||'',
       'Lama Kerja': e.lama||'',
       'Rtg ER1': e.rtg_er1||'', 'Rtg ER2': e.rtg_er2||'', 'Rtg ER3': e.rtg_er3||'',
       'Rtg ER4': e.rtg_er4||'', 'Rtg ER5': e.rtg_er5||'', 'Rtg ER6': e.rtg_er6||'',
