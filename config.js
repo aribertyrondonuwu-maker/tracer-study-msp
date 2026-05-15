@@ -89,9 +89,9 @@ export const DATA_AKADEMIK = {
   // Jumlah lulusan per tahun kalender wisuda/yudisium
   // Sesuai LKPS Tabel 2.8B1 & 2.8B2 (TS-4 s.d. TS-2, untuk TS=2025)
   jumlah_lulusan: {
-    [2021]: 0,   // TS-4 — isi sesuai data wisuda 2021
-    [2022]: 0,   // TS-3 — isi sesuai data wisuda 2022
-    [2023]: 0,   // TS-2 — isi sesuai data wisuda 2023
+    [2021]: 14,  // TS-4 — sesuai LKPS Tabel 2.8B
+    [2022]: 16,  // TS-3 — sesuai LKPS Tabel 2.8B
+    [2023]: 33,  // TS-2 — sesuai LKPS Tabel 2.8B
   },
   // Data dari Tabel 2.8A (mahasiswa aktif & mahasiswa baru) — untuk referensi
   mahasiswa_aktif: {
