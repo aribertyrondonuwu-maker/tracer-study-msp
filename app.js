@@ -65,11 +65,23 @@ export async function loadStatistik() {
   document.getElementById('stat-loading-state').style.display = 'block';
   document.getElementById('stat-content').style.display = 'none';
 
-  const [{ data: al }, { data: em }, { data: sk }] = await Promise.all([
-    db.from(TBL_ALUMNI).select('status,tunggu,kesesuaian,bidang,level_kerja'),
-    db.from(TBL_EMPLOYER).select('kepuasan,rtg_er1,rtg_er2,rtg_er3,rtg_er4,rtg_er5,rtg_er6,rtg_er7'),
-    db.from(TBL_STAKEHOLDER).select('jenis,kepuasan,rtg_sk1,rtg_sk2,rtg_sk3,rtg_sk4,rtg_sk5,rtg_sk6,rtg_sk7'),
-  ]);
+  let al, em, sk;
+  try {
+    [{ data: al }, { data: em }, { data: sk }] = await Promise.all([
+      db.from(TBL_ALUMNI).select('status,tunggu,kesesuaian,bidang,level_kerja'),
+      db.from(TBL_EMPLOYER).select('kepuasan,rtg_er1,rtg_er2,rtg_er3,rtg_er4,rtg_er5,rtg_er6,rtg_er7'),
+      db.from(TBL_STAKEHOLDER).select('jenis,kepuasan,rtg_sk1,rtg_sk2,rtg_sk3,rtg_sk4,rtg_sk5,rtg_sk6,rtg_sk7'),
+    ]);
+  } catch (err) {
+    console.error('[loadStatistik] Gagal fetch data:', err);
+    document.getElementById('stat-loading-state').style.display = 'none';
+    document.getElementById('stat-content').style.display = 'block';
+    document.getElementById('stat-summary-grid').innerHTML =
+      `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--red)">
+        ⚠️ Gagal memuat data statistik. Periksa koneksi internet lalu klik 🔄 Perbarui.
+      </div>`;
+    return;
+  }
 
   const a = al || [], e = em || [], s = sk || [];
 
@@ -165,7 +177,7 @@ export async function loadStatistik() {
     const k = `rtg_er${i+1}`;
     const vals = e.map(x => x[k]).filter(Boolean);
     const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
-    const pct = (avg/5)*100;
+    const pct = (avg/4)*100;  // skala 1–4, bukan 1–5
     return `<div class="stat-bar-row">
       <div class="stat-bar-label">${lbl}</div>
       <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:var(--navy)"></div></div>
@@ -305,7 +317,7 @@ window.goHome      = () => router.goHome();
 window.startForm   = (r) => router.startForm(r);
 window.showAdmin   = () => router.showAdmin();
 window.showTentang = () => router.go('tentang');
-window.showStatistik = async () => { router.go('statistik'); await loadStatistik(); };
+window.showStatistik = async () => { router.go('statistik'); await loadStatistik(); };  // reload data terbaru setiap kali dibuka
 window.showResponden  = async () => { router.go('responden'); await loadResponden(); };
 window.loadResponden  = loadResponden;
 window.loadStatistik = loadStatistik;
@@ -324,5 +336,8 @@ window._printLaporan = printLaporan;
 document.addEventListener('DOMContentLoaded', () => {
   initFormListeners();
   router.go('landing');
+  // ── Auto-load statistik di background saat halaman pertama dibuka
+  // Supaya data tidak pernah tampil 0 ketika user klik "Lihat Statistik"
+  loadStatistik().catch(err => console.warn('[app.js] Pre-load statistik gagal:', err));
   console.log('[app.js] Tracer Study MSP FPIK UNSRAT — LAM PTIP IAPS 1.0');
 });
