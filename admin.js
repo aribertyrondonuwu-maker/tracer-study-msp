@@ -673,12 +673,12 @@ async function renderTableAlumni() {
   const { al } = await getData();
   document.getElementById('tb-al').innerHTML = al.length
     ? al.map(a => `<tr>
-        <td><strong>${a.nama}</strong></td><td>${a.nim}</td><td>${a.lulus||'–'}</td>
-        <td>${a.email}</td><td><span class="bdg bgt">${a.status||'–'}</span></td>
-        <td>${a.instansi||'–'}</td><td>${(a.bidang||'–').split('(')[0].trim()}</td>
+        <td><strong>${a.nama}</strong></td><td>${a.lulus||'–'}</td>
+        <td><span class="bdg bgt">${a.status||'–'}</span></td>
+        <td>${(a.bidang||'–').split('(')[0].trim()}</td>
         <td>${a.level_kerja||'–'}</td><td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
         <td><span class="bdg bgo">${a.kesesuaian||'–'}</span></td>
-        <td>${a.gaji||'–'}</td><td>${a.rekomendasi||'–'}</td>
+        <td>${a.gaji||'–'}</td>
         <td style="font-size:10.5px;white-space:nowrap">${new Date(a.created_at).toLocaleString('id-ID')}</td>
         <td class="delete-only-superadmin">
           <button onclick="window._deleteRow('${TBL_ALUMNI}','${a.id}')"
@@ -686,7 +686,7 @@ async function renderTableAlumni() {
             Hapus
           </button>
         </td></tr>`).join('')
-    : '<tr><td colspan="14"><div class="empty">Belum ada data alumni.</div></td></tr>';
+    : '<tr><td colspan="9"><div class="empty">Belum ada data alumni.</div></td></tr>';
 }
 
 async function renderTableEmployer() {
@@ -694,15 +694,12 @@ async function renderTableEmployer() {
   document.getElementById('tb-em').innerHTML = em.length
     ? em.map(e => `<tr>
         <td><strong>${e.instansi}</strong></td><td>${e.sektor}</td>
-        <td>${e.kota}</td><td>${e.pengisi}</td><td>${e.email}</td>
-        <td>${e.alumni_nama||'–'}</td>
         <td style="text-align:center">
           ${e.alumni_tahun_lulus
             ? `<span class="bdg bgt">${e.alumni_tahun_lulus}</span>`
             : '<span style="color:var(--g400);font-size:11px">–</span>'}
         </td>
         <td><span class="bdg bgg">${e.kepuasan||'–'}</span></td>
-        <td>${e.rekrut||'–'}</td>
         <td style="font-size:10.5px;white-space:nowrap">${new Date(e.created_at).toLocaleString('id-ID')}</td>
         <td class="delete-only-superadmin">
           <button onclick="window._deleteRow('${TBL_EMPLOYER}','${e.id}')"
@@ -710,7 +707,7 @@ async function renderTableEmployer() {
             Hapus
           </button>
         </td></tr>`).join('')
-    : '<tr><td colspan="11"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
+    : '<tr><td colspan="6"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
 }
 
 // ════════════════════════════════════════════════════════
@@ -1577,31 +1574,25 @@ export async function exportExcel() {
     // ── SHEET 2: DATA ALUMNI LENGKAP ──────────────────────
     if (al.length) {
       const headersAl = [
-        'No','Nama','NIM','Thn Masuk','Thn Lulus','Email','No. HP','Gender','IPK',
-        'Judul Skripsi','Status Pekerjaan','Waktu Tunggu','Instansi/Perusahaan',
-        'Jabatan','Kota','Bidang/Sektor','Level Tempat Kerja','Gaji/Penghasilan',
-        'Kesesuaian Bidang','Sumber Informasi Kerja','Kompetensi Perlu Ditingkatkan',
-        'Rekomendasi Prodi',
+        'No','Nama','Thn Lulus','Status Pekerjaan','Waktu Tunggu',
+        'Bidang/Sektor','Level Tempat Kerja','Gaji/Penghasilan',
+        'Kesesuaian Bidang',
         'AR1 - Kurikulum','AR2 - Pengajaran','AR3 - Bimbingan',
         'AR4 - Lab Perairan','AR5 - Sarana Kampus','AR6 - PKL/Lapangan','AR7 - Adm Akademik',
-        'Metode Pembelajaran','Saran Kurikulum','Saran Fasilitas','Pesan',
         'Tanggal Isi',
       ];
       const rowsAl = al.map((a, i) => [
-        i+1, a.nama||'', a.nim||'', a.masuk||'', a.lulus||'',
-        a.email||'', a.hp||'', a.gender||'', a.ipk||'', a.judul||'',
-        a.status||'', a.tunggu||'', a.instansi||'', a.jabatan||'', a.kota||'',
+        i+1, a.nama||'', a.lulus||'',
+        a.status||'', a.tunggu||'',
         a.bidang||'', a.level_kerja||'', a.gaji||'', a.kesesuaian||'',
-        a.sumber||'', a.kompetensi||'', a.rekomendasi||'',
         a.rtg_ar1||'', a.rtg_ar2||'', a.rtg_ar3||'', a.rtg_ar4||'',
         a.rtg_ar5||'', a.rtg_ar6||'', a.rtg_ar7||'',
-        a.metode||'', a.saran_kur||'', a.saran_fas||'', a.pesan||'',
         new Date(a.created_at).toLocaleString('id-ID'),
       ]);
       const wsAl = XLSX.utils.aoa_to_sheet([headersAl, ...rowsAl]);
       wsAl['!cols'] = headersAl.map((h, i) => ({
-        wch: [4,22,14,10,10,24,14,8,6,32,22,16,26,18,14,26,22,18,16,22,32,14,
-              6,6,6,6,6,6,6,20,32,32,32,18][i] || 14
+        wch: [4,22,10,22,16,26,22,18,16,
+              6,6,6,6,6,6,6,18][i] || 14
       }));
       XLSX.utils.book_append_sheet(wb, wsAl, '👨‍🎓 Data Alumni');
     }
@@ -1609,29 +1600,26 @@ export async function exportExcel() {
     // ── SHEET 3: DATA PENGGUNA LULUSAN ────────────────────
     if (em.length) {
       const headersEm = [
-        'No','Instansi/Perusahaan','Sektor','Kota','Nama Pengisi','Jabatan Pengisi',
-        'Email','No. Telp','Nama Alumni','Jabatan Alumni','Lama Bekerja',
+        'No','Instansi/Perusahaan','Sektor','Thn Lulus Alumni Dinilai',
         'ER1 - Integritas','ER2 - Keahlian Bidang','ER3 - Bahasa Asing',
         'ER4 - Teknologi Info','ER5 - Komunikasi','ER6 - Kerjasama Tim','ER7 - Pengembangan Diri',
-        'Rata-rata 7 Aspek','Tingkat Kepuasan','Bersedia Rekrut Lagi',
-        'Saran','Pesan','Tanggal Isi',
+        'Rata-rata 7 Aspek','Tingkat Kepuasan','Tanggal Isi',
       ];
       const rowsEm = em.map((e, i) => {
         const rtgVals = [e.rtg_er1,e.rtg_er2,e.rtg_er3,e.rtg_er4,e.rtg_er5,e.rtg_er6,e.rtg_er7].filter(Boolean);
         const avgRtg  = rtgVals.length ? (rtgVals.reduce((a,b)=>a+b,0)/rtgVals.length).toFixed(2) : '';
         return [
-          i+1, e.instansi||'', e.sektor||'', e.kota||'', e.pengisi||'', e.jab_pengisi||'',
-          e.email||'', e.telp||'', e.alumni_nama||'', e.alumni_jab||'', e.lama||'',
+          i+1, e.instansi||'', e.sektor||'', e.alumni_tahun_lulus||'',
           e.rtg_er1||'', e.rtg_er2||'', e.rtg_er3||'', e.rtg_er4||'',
           e.rtg_er5||'', e.rtg_er6||'', e.rtg_er7||'', avgRtg,
-          e.kepuasan||'', e.rekrut||'', e.saran||'', e.pesan||'',
+          e.kepuasan||'',
           new Date(e.created_at).toLocaleString('id-ID'),
         ];
       });
       const wsEm = XLSX.utils.aoa_to_sheet([headersEm, ...rowsEm]);
       wsEm['!cols'] = headersEm.map((h, i) => ({
-        wch: [4,28,16,14,20,20,24,14,20,18,14,
-              6,6,6,6,6,6,6,12,18,16,32,32,18][i] || 14
+        wch: [4,28,16,16,
+              6,6,6,6,6,6,6,12,18,18][i] || 14
       }));
       XLSX.utils.book_append_sheet(wb, wsEm, '🏢 Pengguna Lulusan');
     }
@@ -1866,29 +1854,6 @@ export async function exportExcel() {
       XLSX.utils.book_append_sheet(wb, wsProdi, '⭐ Penilaian Prodi');
     }
 
-    // ── SHEET 10: PIVOT — BIDANG KERJA × GENDER ──────────
-    if (al.length) {
-      const bidangMap = {};
-      al.forEach(a => {
-        const b = (a.bidang||'Tidak diisi').split('(')[0].trim().substring(0, 40);
-        const g = a.gender || 'Tidak diisi';
-        if (!bidangMap[b]) bidangMap[b] = { 'Laki-laki':0, 'Perempuan':0, 'Tidak diisi':0 };
-        bidangMap[b][g] = (bidangMap[b][g]||0) + 1;
-      });
-      const headerPivot = [
-        ['PIVOT — DISTRIBUSI BIDANG KERJA PER GENDER', '', '', ''],
-        [`Program Studi MSP FPIK UNSRAT · Dicetak: ${tgl}`, '', '', ''],
-        ['', '', '', ''],
-        ['Bidang / Sektor Pekerjaan', 'Laki-laki', 'Perempuan', 'Total'],
-      ];
-      const rowsPivot = Object.entries(bidangMap)
-        .sort((a,b) => (b[1]['Laki-laki']+b[1]['Perempuan']) - (a[1]['Laki-laki']+a[1]['Perempuan']))
-        .map(([b, g]) => [b, g['Laki-laki']||0, g['Perempuan']||0, (g['Laki-laki']||0)+(g['Perempuan']||0)]);
-      const wsPivot = XLSX.utils.aoa_to_sheet([...headerPivot, ...rowsPivot]);
-      wsPivot['!cols'] = [{wch:44},{wch:12},{wch:12},{wch:10}];
-      XLSX.utils.book_append_sheet(wb, wsPivot, '🔀 Pivot Bidang-Gender');
-    }
-
     // ── Simpan workbook ───────────────────────────────────
     XLSX.writeFile(wb, `LaporanLengkap_TracerStudy_MSP_FPIK_UNSRAT_${tglFile}.xlsx`);
 
@@ -2045,12 +2010,9 @@ export async function saveAsExcel(type) {
   if (type === 'alumni') {
     if (!al.length) return alert('Belum ada data alumni.');
     const ws = XLSX.utils.json_to_sheet(al.map(a => ({
-      'Nama': a.nama||'', 'NIM': a.nim||'', 'Thn Masuk': a.masuk||'', 'Thn Lulus': a.lulus||'',
-      'Email': a.email||'', 'HP': a.hp||'', 'Gender': a.gender||'', 'IPK': a.ipk||'',
-      'Status': a.status||'', 'Waktu Tunggu': a.tunggu||'', 'Instansi': a.instansi||'',
-      'Jabatan': a.jabatan||'', 'Kota': a.kota||'', 'Bidang': a.bidang||'',
+      'Nama': a.nama||'', 'Thn Lulus': a.lulus||'',
+      'Status': a.status||'', 'Waktu Tunggu': a.tunggu||'', 'Bidang': a.bidang||'',
       'Level Kerja': a.level_kerja||'', 'Gaji': a.gaji||'', 'Kesesuaian': a.kesesuaian||'',
-      'Rekomendasi': a.rekomendasi||'',
       'Rtg AR1': a.rtg_ar1||'', 'Rtg AR2': a.rtg_ar2||'', 'Rtg AR3': a.rtg_ar3||'',
       'Rtg AR4': a.rtg_ar4||'', 'Rtg AR5': a.rtg_ar5||'', 'Rtg AR6': a.rtg_ar6||'',
       'Rtg AR7': a.rtg_ar7||'', 'Tgl Isi': new Date(a.created_at).toLocaleDateString('id-ID'),
@@ -2061,14 +2023,11 @@ export async function saveAsExcel(type) {
   } else if (type === 'employer') {
     if (!em.length) return alert('Belum ada data pengguna lulusan.');
     const ws = XLSX.utils.json_to_sheet(em.map(e => ({
-      'Instansi': e.instansi||'', 'Sektor': e.sektor||'', 'Kota': e.kota||'',
-      'Pengisi': e.pengisi||'', 'Jabatan': e.jab_pengisi||'', 'Email': e.email||'',
-      'Telp': e.telp||'', 'Alumni': e.alumni_nama||'', 'Jab Alumni': e.alumni_jab||'',
+      'Instansi': e.instansi||'', 'Sektor': e.sektor||'',
       'Tahun Lulus Alumni': e.alumni_tahun_lulus||'',
-      'Lama Kerja': e.lama||'',
       'Rtg ER1': e.rtg_er1||'', 'Rtg ER2': e.rtg_er2||'', 'Rtg ER3': e.rtg_er3||'',
       'Rtg ER4': e.rtg_er4||'', 'Rtg ER5': e.rtg_er5||'', 'Rtg ER6': e.rtg_er6||'',
-      'Rtg ER7': e.rtg_er7||'', 'Kepuasan': e.kepuasan||'', 'Rekrut': e.rekrut||'',
+      'Rtg ER7': e.rtg_er7||'', 'Kepuasan': e.kepuasan||'',
       'Tgl Isi': new Date(e.created_at).toLocaleDateString('id-ID'),
     })));
     XLSX.utils.book_append_sheet(wb, ws, 'Pengguna Lulusan');
@@ -2136,10 +2095,10 @@ export async function saveAsPDF(type) {
     addHeader('Data Alumni', `${al.length} responden`);
     doc.autoTable({
       startY: 60,
-      head: [['Nama','NIM','Lulus','Email','Status','Instansi','Bidang','W.Tunggu','Kesesuaian','Gaji']],
+      head: [['Nama','Lulus','Status','Bidang','W.Tunggu','Kesesuaian','Gaji']],
       body: al.map(a => [
-        a.nama||'–', a.nim||'–', a.lulus||'–', a.email||'–',
-        a.status||'–', a.instansi||'–', (a.bidang||'–').split('(')[0].trim(),
+        a.nama||'–', a.lulus||'–',
+        a.status||'–', (a.bidang||'–').split('(')[0].trim(),
         a.tunggu||'–', a.kesesuaian||'–', a.gaji||'–',
       ]),
       styles: { fontSize: 7.5, cellPadding: 4 },
@@ -2154,10 +2113,10 @@ export async function saveAsPDF(type) {
     addHeader('Data Pengguna Lulusan', `${em.length} responden`);
     doc.autoTable({
       startY: 60,
-      head: [['Instansi','Sektor','Kota','Pengisi','Email','Alumni','Kepuasan','Rekrut','Tgl Isi']],
+      head: [['Instansi','Sektor','Thn Lulus Alumni','Kepuasan','Tgl Isi']],
       body: em.map(e => [
-        e.instansi||'–', e.sektor||'–', e.kota||'–', e.pengisi||'–', e.email||'–',
-        e.alumni_nama||'–', e.kepuasan||'–', e.rekrut||'–',
+        e.instansi||'–', e.sektor||'–', e.alumni_tahun_lulus||'–',
+        e.kepuasan||'–',
         new Date(e.created_at).toLocaleDateString('id-ID'),
       ]),
       styles: { fontSize: 7.5, cellPadding: 4 },
