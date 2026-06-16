@@ -58,12 +58,29 @@ COMMENT ON COLUMN ts_employer.alumni_tahun_lulus IS
 
 
 -- ══════════════════════════════════════════════════════════
---  BAGIAN 3: Pastikan kolom gaji bersifat nullable
---  (karena sekarang gaji bersifat opsional di formulir)
+--  BAGIAN 3: Jadikan kolom yang tidak lagi diisi sebagai nullable
+--  Kolom-kolom ini dihapus dari formulir tapi masih ada di tabel
 -- ══════════════════════════════════════════════════════════
 
-ALTER TABLE ts_alumni
-  ALTER COLUMN gaji DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN nim         DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN masuk       DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN email       DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN hp          DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN gender      DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN ipk         DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN judul       DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN instansi    DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN jabatan     DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN kota        DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN sumber      DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN kompetensi  DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN perlu       DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN metode      DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN saran_kur   DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN saran_fas   DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN rekomendasi DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN pesan       DROP NOT NULL;
+ALTER TABLE ts_alumni ALTER COLUMN gaji        DROP NOT NULL;
 
 
 -- ══════════════════════════════════════════════════════════
