@@ -551,7 +551,8 @@ function build28B1Data(al) {
     // Hanya alumni yang BEKERJA dan punya data waktu tunggu yang dihitung sebagai "terlacak".
     // ⚠️ PENTING: status "Belum Bekerja — ..." JUGA mengandung kata "Bekerja",
     //    jadi filter harus startsWith('Bekerja') agar tidak salah cocok.
-    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja') && a.tunggu && a.tunggu.trim() !== '');
+    //    Definisi "bekerja" (terlacak) HARUS sama persis dengan 2.8B2 agar kedua tabel konsisten.
+    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
@@ -587,9 +588,9 @@ function build28B2Data(al) {
       ? jumlahResmi
       : grp.length;
     // ⚠️ Sama seperti 2.8B1: "Belum Bekerja — ..." mengandung kata "Bekerja",
-    //    jadi filter harus startsWith('Bekerja'). Terlacak = bekerja & level_kerja terisi
-    //    (harus konsisten dengan jumlah lulusan terlacak pada Tabel 2.7b/2.8b1).
-    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja') && a.level_kerja && a.level_kerja.trim() !== '');
+    //    jadi filter harus startsWith('Bekerja'). Definisi "bekerja" (terlacak) HARUS
+    //    sama persis dengan 2.8B1 (berbasis status saja) supaya kedua tabel konsisten.
+    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
     const terlacak = bekerja;
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: terlacak.length,
@@ -631,8 +632,15 @@ function renderLAM28B1(al) {
   });
   const bekerja    = alFiltered.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
   const pctLt6     = bekerja.length ? Math.round(bekerja.filter(isLt6).length / bekerja.length * 100) : 0;
+  const belumKerja = alFiltered.length - bekerja.length;
 
-  el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
+  el.innerHTML = `
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px">
+    <div class="sc"><div class="sl">Total Responden<br><span style="font-size:9px;opacity:.7;font-weight:400">(semua status, TS-4–TS-2)</span></div><div class="sv">${alFiltered.length}</div></div>
+    <div class="sc"><div class="sl">Sudah Bekerja<br><span style="font-size:9px;opacity:.7;font-weight:400">(dasar Tabel 2.8B1 &amp; 2.8B2)</span></div><div class="sv" style="color:var(--teal)">${bekerja.length}</div></div>
+    <div class="sc"><div class="sl">Belum Bekerja /<br>Studi Lanjut</div><div class="sv" style="color:var(--g400)">${belumKerja}</div></div>
+  </div>
+  <div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
     <thead>
       <tr>
         <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
@@ -656,6 +664,7 @@ function renderLAM28B1(al) {
   </table>
   <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
     * Hanya mencakup alumni TS-4 s.d. TS-2 (${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}) sesuai LKPS LAM PTIP IAPS 1.0.<br>
+    * "Jumlah Lulusan yang Terlacak" (kolom 3) = alumni yang <strong>sudah bekerja</strong> dan punya data waktu tunggu — sesuai aturan resmi LKPS bahwa total kolom waktu tunggu (4+5+6) harus sama dengan kolom 3. Alumni berstatus "Belum Bekerja" atau "Studi Lanjut" termasuk dalam Total Responden tapi tidak dihitung di kolom ini.<br>
     ⚠️ = Jumlah Lulusan belum diisi di <code>DATA_AKADEMIK.jumlah_lulusan</code> (config.js) — tampil jumlah responden sebagai estimasi.
     Isi dengan data wisuda resmi dari bagian akademik untuk keakuratan Tabel 2.8B.
   </p>
