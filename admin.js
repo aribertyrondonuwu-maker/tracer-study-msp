@@ -514,8 +514,21 @@ function labelTahun(yr) {
 
 // ── Helper: 2.8B1 — HANYA TS-4, TS-3, TS-2 (sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b1)
 function build28B1Data(al) {
-  const isLt6  = a => a.tunggu && (a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6'));
-  const is6_18 = a => a.tunggu && (a.tunggu.includes('6 –') || a.tunggu.includes('6 -') || a.tunggu.includes('6-') || a.tunggu.includes('6 ≤'));
+  // ── Kategorisasi WAJIB mencakup SEMUA opsi dropdown a-tunggu di formulir:
+  //    "Belum pernah bekerja", "< 6 bulan setelah lulus", "6 – 12 bulan setelah lulus",
+  //    "12 – 18 bulan setelah lulus", "> 18 bulan setelah lulus", "Sudah bekerja sebelum lulus"
+  //    Sesuai 3 kategori resmi LKPS: WT<6, 6≤WT≤18, WT>18.
+  //    "Sudah bekerja sebelum lulus" = waktu tunggu negatif/nol → masuk kategori WT<6.
+  //    "12 – 18 bulan" digabung ke kategori 6≤WT≤18 (karena 12-18 termasuk rentang 6-18).
+  const isLt6  = a => a.tunggu && (
+    a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6') ||
+    a.tunggu.includes('Sudah bekerja sebelum lulus')
+  );
+  const is6_18 = a => a.tunggu && (
+    a.tunggu.includes('6 – 12') || a.tunggu.includes('6 - 12') || a.tunggu.includes('6-12') ||
+    a.tunggu.includes('12 – 18') || a.tunggu.includes('12 - 18') || a.tunggu.includes('12-18') ||
+    a.tunggu.includes('6 ≤')
+  );
   const isGt18 = a => a.tunggu && (a.tunggu.includes('> 18') || a.tunggu.includes('>18'));
 
   // Hanya 3 tahun sesuai LKPS: TS-4, TS-3, TS-2
@@ -536,7 +549,9 @@ function build28B1Data(al) {
     // "Data total waktu tunggu lulusan harus sama dengan jumlah lulusan terlacak pada TS yang relevan."
     // Maka "Jumlah Lulusan Terlacak" (kolom 3) HARUS = WT<6 + WT6-18 + WT>18 (kolom 4+5+6).
     // Hanya alumni yang BEKERJA dan punya data waktu tunggu yang dihitung sebagai "terlacak".
-    const bekerja  = grp.filter(a => a.status && a.status.includes('Bekerja') && a.tunggu && a.tunggu.trim() !== '');
+    // ⚠️ PENTING: status "Belum Bekerja — ..." JUGA mengandung kata "Bekerja",
+    //    jadi filter harus startsWith('Bekerja') agar tidak salah cocok.
+    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja') && a.tunggu && a.tunggu.trim() !== '');
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
@@ -571,8 +586,11 @@ function build28B2Data(al) {
     const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
       ? jumlahResmi
       : grp.length;
-    const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
-    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
+    // ⚠️ Sama seperti 2.8B1: "Belum Bekerja — ..." mengandung kata "Bekerja",
+    //    jadi filter harus startsWith('Bekerja'). Terlacak = bekerja & level_kerja terisi
+    //    (harus konsisten dengan jumlah lulusan terlacak pada Tabel 2.7b/2.8b1).
+    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja') && a.level_kerja && a.level_kerja.trim() !== '');
+    const terlacak = bekerja;
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: terlacak.length,
              lok: bekerja.filter(isLok).length, nas: bekerja.filter(isNas).length, mul: bekerja.filter(isMul).length };
@@ -611,7 +629,7 @@ function renderLAM28B1(al) {
     const yr = parseInt(a.lulus);
     return yr >= TAHUN_TRACER.TS_4 && yr <= TAHUN_TRACER.TS_2;
   });
-  const bekerja    = alFiltered.filter(a => a.status && a.status.includes('Bekerja'));
+  const bekerja    = alFiltered.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
   const pctLt6     = bekerja.length ? Math.round(bekerja.filter(isLt6).length / bekerja.length * 100) : 0;
 
   el.innerHTML = `<div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
