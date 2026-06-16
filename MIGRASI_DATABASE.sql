@@ -85,3 +85,58 @@ ALTER TABLE ts_alumni ALTER COLUMN status DROP NOT NULL;
 -- karena field ini sudah tidak relevan, bisa di-set semua ke NULL:
 -- UPDATE ts_alumni SET status = NULL;
 -- Jalankan baris di atas HANYA jika ingin mengosongkan riwayat status lama.
+
+
+-- ══════════════════════════════════════════════════════════
+--  BAGIAN 7: Hapus data lama dengan status "Belum pernah bekerja"
+--  Opsi ini sudah dihapus dari formulir (lihat keputusan: semua
+--  responden yang submit dianggap sudah bekerja). Data lama dengan
+--  nilai ini menyebabkan "Jumlah Lulusan Terlacak" tidak konsisten
+--  dengan total breakdown WT<6 + WT6-18 + WT>18 di Tabel 2.8B1.
+-- ══════════════════════════════════════════════════════════
+
+-- 1. Cek dulu siapa yang terdampak (jalankan untuk verifikasi)
+SELECT nama, lulus, tunggu
+FROM ts_alumni
+WHERE tunggu ILIKE '%belum pernah bekerja%';
+
+-- 2. Setelah yakin, hapus baris tersebut
+DELETE FROM ts_alumni
+WHERE tunggu ILIKE '%belum pernah bekerja%';
+
+
+-- ══════════════════════════════════════════════════════════
+--  BAGIAN 8: Tabel ts_config — Konfigurasi Tabel 2.7C
+--  Menyimpan data populasi, instrumen, dan tindak lanjut yang
+--  diisi superadmin di Tabel 2.7C (Kepuasan Stakeholder).
+--  Sebelumnya data ini hanya tersimpan di localStorage browser
+--  (TIDAK PERSISTEN, hilang jika cache dibersihkan atau pindah
+--  device/browser). Sekarang dipindah ke Supabase agar permanen.
+-- ══════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS ts_config (
+  key   TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+COMMENT ON TABLE ts_config IS
+  'Konfigurasi key-value untuk dashboard tracer study, seperti data populasi '
+  'Tabel 2.7C (jumlah total mahasiswa/dosen/tendik/mitra per tahun survei) '
+  'yang diisi manual oleh superadmin.';
+
+-- Izinkan akses publik (anon) untuk SELECT, INSERT, UPDATE
+-- (autentikasi superadmin dilakukan di level aplikasi, bukan RLS)
+ALTER TABLE ts_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow select for anon" ON ts_config
+  FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow insert for anon" ON ts_config
+  FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "Allow update for anon" ON ts_config
+  FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+-- Verifikasi tabel berhasil dibuat
+SELECT * FROM ts_config;

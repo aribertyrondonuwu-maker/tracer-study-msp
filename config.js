@@ -11,6 +11,7 @@ export const TBL_ALUMNI       = 'ts_alumni';
 export const TBL_EMPLOYER     = 'ts_employer';
 export const TBL_ADMINS       = 'ts_admins';
 export const TBL_STAKEHOLDER  = 'ts_stakeholder';
+export const TBL_CONFIG       = 'ts_config';
 
 // ── Role Definitions
 export const ROLE = {

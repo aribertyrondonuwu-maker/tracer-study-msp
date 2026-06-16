@@ -6,7 +6,7 @@
 // ══════════════════════════════════════════════════════════
 
 import { db }       from './db.js';
-import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER,
+import { TBL_ALUMNI, TBL_EMPLOYER, TBL_ADMINS, TBL_STAKEHOLDER, TBL_CONFIG,
          ASPEK_LAM, ASPEK_PRODI, CHART_COLORS,
          TAB_ACCESS, ROLE, TAHUN_SURVEI, TAHUN_TRACER, DATA_AKADEMIK } from './config.js';
 import { getUser, isSuperAdmin } from './auth.js';
@@ -147,6 +147,9 @@ async function renderLAM() {
   const { al, em } = await getData();
   const div        = document.getElementById('lam-report');
   if (!al.length && !em.length) { div.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
+
+  // Muat konfigurasi populasi Tabel 2.7C dari Supabase sebelum render
+  await loadSkConfig();
 
   const totalEm = em.length || 1;
   const t27b = ASPEK_LAM.map((r, i) => {
@@ -398,6 +401,8 @@ async function renderLAM() {
 // ════════════════════════════════════════════════════════
 async function renderAnalisis() {
   const { al, em, sk } = await getData();
+  // Muat konfigurasi populasi Tabel 2.7C dari Supabase sebelum render
+  await loadSkConfig();
   document.getElementById('cover-date').textContent =
     'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
@@ -882,11 +887,56 @@ window._editAlumniTahunLulus = editAlumniTahunLulus;
 
 const SK_CONFIG_KEY = 'sk_27c_config';
 
+// ── Konfigurasi Tabel 2.7C (populasi, instrumen, tindak lanjut) disimpan
+//    di Supabase tabel ts_config (key-value), bukan localStorage, agar
+//    persisten dan bisa diakses dari device/browser manapun.
+let _skConfigCache = null;
+
 function getSkConfig() {
+  // Render sinkron pakai cache in-memory; dipopulasi oleh loadSkConfig() saat tab dibuka.
+  // Fallback ke localStorage (data lama) jika cache belum pernah di-load.
+  if (_skConfigCache !== null) return _skConfigCache;
   try { return JSON.parse(localStorage.getItem(SK_CONFIG_KEY) || '{}'); } catch { return {}; }
 }
-function saveSkConfig(cfg) {
-  localStorage.setItem(SK_CONFIG_KEY, JSON.stringify(cfg));
+
+async function loadSkConfig() {
+  try {
+    const { data, error } = await db
+      .from(TBL_CONFIG)
+      .select('value')
+      .eq('key', SK_CONFIG_KEY)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && data.value) {
+      _skConfigCache = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+    } else {
+      // Belum ada di Supabase — migrasikan data lama dari localStorage jika ada
+      let legacy = {};
+      try { legacy = JSON.parse(localStorage.getItem(SK_CONFIG_KEY) || '{}'); } catch {}
+      _skConfigCache = legacy;
+      if (Object.keys(legacy).length) await saveSkConfig(legacy); // migrasi otomatis ke Supabase
+    }
+  } catch (e) {
+    console.error('Gagal memuat konfigurasi Tabel 2.7C dari Supabase:', e);
+    try { _skConfigCache = JSON.parse(localStorage.getItem(SK_CONFIG_KEY) || '{}'); } catch { _skConfigCache = {}; }
+  }
+  return _skConfigCache;
+}
+
+async function saveSkConfig(cfg) {
+  _skConfigCache = cfg;
+  localStorage.setItem(SK_CONFIG_KEY, JSON.stringify(cfg)); // cache lokal cepat
+  try {
+    const { error } = await db
+      .from(TBL_CONFIG)
+      .upsert({ key: SK_CONFIG_KEY, value: cfg }, { onConflict: 'key' });
+    if (error) {
+      console.error('Gagal menyimpan konfigurasi Tabel 2.7C ke Supabase:', error.message);
+      alert(`⚠️ Gagal menyimpan ke database: ${error.message}\nData hanya tersimpan sementara di browser ini.`);
+    }
+  } catch (e) {
+    console.error('Gagal menyimpan konfigurasi Tabel 2.7C ke Supabase:', e);
+  }
 }
 
 const JENIS_LIST = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
@@ -1123,7 +1173,7 @@ function render27CTable(sk, em) {
     <strong>Keterangan:</strong> Skala penilaian responden: SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, K (Kurang) = 1.
     Skor akhir dikonversi ke skala 1–4 sesuai panduan LAM PTIP IAPS 1.0.<br>
     Total terdata: <strong>${sk.length} stakeholder + ${_em.length} pengguna lulusan</strong> = ${sk.length + _em.length} responden.
-    ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis di browser.</span>':''}
+    ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis ke database.</span>':''}
   </p>`;
 
   return `<div class="tw" style="overflow-x:auto">
@@ -1136,11 +1186,13 @@ function render27CTable(sk, em) {
   </div>`;
 }
 
-window._skCfgSave = function(jKey, field, value) {
+window._skCfgSave = async function(jKey, field, value) {
   const cfg = getSkConfig();
   if (!cfg[jKey]) cfg[jKey] = {};
   cfg[jKey][field] = value;
-  saveSkConfig(cfg);
+  await saveSkConfig(cfg);
+  // Refresh tabel 2.7C agar persentase langsung terhitung ulang
+  if (typeof renderLAM === 'function' && document.getElementById('lam-report')) renderLAM();
 };
 
 async function renderTableStakeholder() {
