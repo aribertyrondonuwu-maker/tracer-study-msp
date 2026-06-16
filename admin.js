@@ -210,10 +210,13 @@ async function renderLAM() {
   const totalT = tungguCat.lt6 + tungguCat['6_18'] + tungguCat.gt18 || 1;
   const pctLt6 = Math.round(tungguCat.lt6 / totalT * 100);
 
+  // ⚠️ Cek Multinasional/Internasional DULU agar tidak ikut dihitung di "nasional"
+  //    (substring "nasional" ada di dalam "Multinasional")
+  const isMulCat = a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'));
   const levelCat = {
-    lokal       : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal')).length,
-    nasional    : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional')).length,
-    multinasional: al.filter(a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length,
+    lokal       : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal') && !isMulCat(a)).length,
+    nasional    : al.filter(a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional') && !isMulCat(a)).length,
+    multinasional: al.filter(isMulCat).length,
   };
 
   // ── Tabel 2.7B (Tabel 1): Jumlah Tanggapan Kepuasan Pengguna yang Terlacak per Tahun Lulus
@@ -517,12 +520,14 @@ function labelTahun(yr) {
 
 // ── Helper: 2.8B1 — HANYA TS-4, TS-3, TS-2 (sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b1)
 function build28B1Data(al) {
-  // ── Kategorisasi WAJIB mencakup SEMUA opsi dropdown a-tunggu di formulir:
-  //    "Belum pernah bekerja", "< 6 bulan setelah lulus", "6 – 12 bulan setelah lulus",
+  // ── Kategorisasi mencakup opsi dropdown a-tunggu di formulir:
+  //    "< 6 bulan setelah lulus", "6 – 12 bulan setelah lulus",
   //    "12 – 18 bulan setelah lulus", "> 18 bulan setelah lulus", "Sudah bekerja sebelum lulus"
   //    Sesuai 3 kategori resmi LKPS: WT<6, 6≤WT≤18, WT>18.
   //    "Sudah bekerja sebelum lulus" = waktu tunggu negatif/nol → masuk kategori WT<6.
   //    "12 – 18 bulan" digabung ke kategori 6≤WT≤18 (karena 12-18 termasuk rentang 6-18).
+  //    ⚠️ Opsi lama "Belum pernah bekerja" sudah dihapus dari formulir DAN dari data
+  //    (lihat MIGRASI_DATABASE.sql) — tidak perlu difilter lagi di sini.
   const isLt6  = a => a.tunggu && (
     a.tunggu.includes('< 6') || a.tunggu.includes('<6') || a.tunggu.includes('Kurang dari 6') ||
     a.tunggu.includes('Sudah bekerja sebelum lulus')
@@ -571,9 +576,14 @@ function build28B1Data(al) {
 
 // ── Helper: 2.8B2 — HANYA TS-4, TS-3, TS-2 (sesuai LKPS LAM PTIP IAPS 1.0 Tabel 2.8b2)
 function build28B2Data(al) {
-  const isLok = a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal');
-  const isNas = a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional');
+  // ⚠️ BUG LAMA: "nasional".includes() juga match substring di "Multinasional"
+  //    (karena "Multinasional" mengandung kata "nasional"), menyebabkan data
+  //    Multinasional dihitung GANDA di kolom Nasional. Filter sekarang dibuat
+  //    saling eksklusif: cek Multinasional/Internasional DULU, baru Lokal,
+  //    baru Nasional (dengan exclude kata "multi" dan "inter").
   const isMul = a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional') || a.level_kerja.toLowerCase().includes('internasional'));
+  const isLok = a => a.level_kerja && a.level_kerja.toLowerCase().includes('lokal') && !isMul(a);
+  const isNas = a => a.level_kerja && a.level_kerja.toLowerCase().includes('nasional') && !isMul(a);
 
   // Hanya 3 tahun sesuai LKPS: TS-4, TS-3, TS-2
   const TAHUN_LIST = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
@@ -2053,8 +2063,8 @@ export async function exportWord() {
     new Paragraph({ text:'D. Tabel 2.8B2 — Tingkat Tempat Kerja', heading:HeadingLevel.HEADING_2 }),
     new Table({ rows:[
       mkRow(['Tingkat Tempat Kerja','Jumlah','Persentase'], true),
-      mkRow(['Lokal/Wilayah/Wirausaha', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')).length, '-']),
-      mkRow(['Nasional/Berbadan Hukum', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')).length, '-']),
+      mkRow(['Lokal/Wilayah/Wirausaha', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('lokal')&&!(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length, '-']),
+      mkRow(['Nasional/Berbadan Hukum', al.filter(a=>a.level_kerja&&a.level_kerja.toLowerCase().includes('nasional')&&!(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length, '-']),
       mkRow(['Multinasional/Internasional', al.filter(a=>a.level_kerja&&(a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length, '-']),
     ]}),
   ]}]});
