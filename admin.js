@@ -214,9 +214,54 @@ async function renderLAM() {
     multinasional: al.filter(a => a.level_kerja && (a.level_kerja.toLowerCase().includes('multinasional')||a.level_kerja.toLowerCase().includes('internasional'))).length,
   };
 
+  // ── Tabel 2.7B (Tabel 1): Jumlah Tanggapan Kepuasan Pengguna yang Terlacak per Tahun Lulus
+  const TAHUN_LIST_27A = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
+  const t27aRows = TAHUN_LIST_27A.map((yr, i) => {
+    const label = i === 0 ? 'TS-4' : i === 1 ? 'TS-3' : 'TS-2';
+    const jumlahLulusan = DATA_AKADEMIK.jumlah_lulusan[yr] || 0;
+    const jumlahTerlacak = em.filter(e => e.alumni_tahun_lulus === yr).length;
+    return { label, jumlahLulusan, jumlahTerlacak };
+  });
+  const totalLulusan27A  = t27aRows.reduce((s,r) => s + r.jumlahLulusan, 0);
+  const totalTerlacak27A = t27aRows.reduce((s,r) => s + r.jumlahTerlacak, 0);
+
   div.innerHTML = `
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>📊 Tabel 2.7B (Tabel 1) — Jumlah Tanggapan Kepuasan Pengguna yang Terlacak</strong>
+    <span style="font-size:11px;color:var(--g500);margin-left:6px">Diisi oleh pengusul dari Program Studi pada program Diploma Tiga/Sarjana/Sarjana Terapan/Magister/Magister Terapan/Sarjana PJJ</span>
+  </div>
+  <div class="tw" style="margin-bottom:24px;overflow-x:auto">
+    <table class="dt" style="min-width:480px">
+      <thead>
+        <tr>
+          <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+          <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+          <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Tanggapan Kepuasan Pengguna yang Terlacak</th>
+        </tr>
+        <tr style="background:var(--g100);font-size:11px;color:var(--g500)">
+          <th style="text-align:center">1</th><th style="text-align:center">2</th><th style="text-align:center">3</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${t27aRows.map(r => `<tr>
+          <td style="text-align:center">${r.label}</td>
+          <td style="text-align:center;background:#fffde7">${r.jumlahLulusan}</td>
+          <td style="text-align:center;background:#fffde7">${r.jumlahTerlacak}</td>
+        </tr>`).join('')}
+        <tr style="background:var(--g50);font-weight:700">
+          <td style="text-align:center">Jumlah</td>
+          <td style="text-align:center;background:#fffde7">${totalLulusan27A}</td>
+          <td style="text-align:center;background:#fffde7">${totalTerlacak27A}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:11px;color:var(--g500);margin-top:8px;font-style:italic">
+      * Jumlah Lulusan bersumber dari data akademik resmi PS (DATA_AKADEMIK.jumlah_lulusan di config.js).
+      Jumlah Tanggapan Terlacak dihitung dari responden Tabel 2.7B (Pengguna Lulusan) yang mencantumkan tahun lulus alumni yang dinilai.
+    </p>
+  </div>
   <div class="info-box lam" style="margin-bottom:20px">
-    <strong>📊 Tabel 2.7B — Kepuasan Pengguna Lulusan (${em.length} responden)</strong>
+    <strong>📊 Tabel 2.7B (Tabel 2) — Kepuasan Pengguna Lulusan (${em.length} responden)</strong>
     <span style="font-size:11px;color:var(--g500);margin-left:8px">Satuan: % dari total responden</span>
   </div>
   <div class="tw" style="margin-bottom:24px;overflow-x:auto">
