@@ -779,8 +779,10 @@ async function editAlumniTahunLulus(id, value) {
     renderTableEmployer(); // reset tampilan ke nilai semula
     return;
   }
+  // Hapus cache agar getData() mengambil data terbaru dari Supabase
+  _cache = { al: null, em: null, sk: null, ts: null };
   // Refresh tabel & laporan LAM agar Tabel 2.7B ikut terupdate
-  renderTableEmployer();
+  await renderTableEmployer();
   if (document.getElementById('lam-report')) renderLAM();
 }
 window._editAlumniTahunLulus = editAlumniTahunLulus;
