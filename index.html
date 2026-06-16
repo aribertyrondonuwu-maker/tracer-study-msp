@@ -661,20 +661,7 @@ table.dt tr:hover td{background:var(--g50);}
       <div class="f"><label>Nama Lengkap <span class="req">*</span></label><input id="a-nama" type="text" placeholder="Sesuai ijazah"></div>
       <div class="f"><label>NIM <span class="req">*</span></label><input id="a-nim" type="text" placeholder="Nomor Induk Mahasiswa"></div>
     </div>
-    <div class="f-row">
-      <div class="f"><label>Tahun Masuk <span class="req">*</span></label><input id="a-masuk" type="number" placeholder="Contoh: 2018" min="2000" max="2030"></div>
-      <div class="f"><label>Tahun Lulus <span class="req">*</span></label><input id="a-lulus" type="number" placeholder="Contoh: 2022" min="2000" max="2030"></div>
-    </div>
-    <div class="f-row">
-      <div class="f"><label>Email Aktif <span class="req">*</span></label><input id="a-email" type="email" placeholder="email@gmail.com"></div>
-      <div class="f"><label>No. HP / WhatsApp</label><input id="a-hp" type="tel" placeholder="+62 ..."></div>
-    </div>
-    <div class="f-row">
-      <div class="f"><label>Jenis Kelamin <span class="req">*</span></label>
-        <select id="a-gender"><option value="">-- Pilih --</option><option>Laki-laki</option><option>Perempuan</option></select></div>
-      <div class="f"><label>IPK</label><input id="a-ipk" type="number" step="0.01" min="0" max="4" placeholder="Contoh: 3.65"></div>
-    </div>
-    <div class="f"><label>Judul Skripsi / Tugas Akhir</label><input id="a-judul" type="text" placeholder="Judul skripsi (opsional)"></div>
+    <div class="f"><label>Tahun Lulus <span class="req">*</span></label><input id="a-lulus" type="number" placeholder="Contoh: 2022" min="2000" max="2030"></div>
     <div class="fnav"><button class="btn-n" onclick="_aNext(1)">Lanjut →</button></div>
   </div>
 
@@ -704,11 +691,6 @@ table.dt tr:hover td{background:var(--g50);}
       </select>
     </div>
     <div class="dvd"></div>
-    <div class="f"><label>Nama Instansi / Perusahaan Tempat Bekerja</label><input id="a-instansi" type="text" placeholder="Nama instansi (isi jika bekerja)"></div>
-    <div class="f-row">
-      <div class="f"><label>Jabatan / Posisi</label><input id="a-jabatan" type="text" placeholder="Jabatan saat ini"></div>
-      <div class="f"><label>Kota / Provinsi Tempat Kerja</label><input id="a-kota" type="text" placeholder="Contoh: Manado, Sulawesi Utara"></div>
-    </div>
     <div class="f"><label>Bidang / Sektor Pekerjaan <span class="req">*</span></label>
       <select id="a-bidang">
         <option value="">-- Pilih --</option>
@@ -767,32 +749,6 @@ table.dt tr:hover td{background:var(--g50);}
         <label class="ro"><input type="radio" name="asesuai" value="Tidak Erat"> Tidak Erat — Pekerjaan tidak berhubungan dengan MSP</label>
       </div>
     </div>
-    <div class="f"><label>Sumber Informasi Lowongan Pekerjaan Pertama</label>
-      <div class="rg" id="a-sumber-grp">
-        <label class="ro"><input type="radio" name="asumber" value="Relasi (dosen/teman/keluarga)"> Relasi (rekomendasi dosen, teman, keluarga)</label>
-        <label class="ro"><input type="radio" name="asumber" value="Iklan online/media sosial"> Iklan online / media sosial</label>
-        <label class="ro"><input type="radio" name="asumber" value="Rekrutmen instansi langsung"> Rekrutmen langsung oleh instansi</label>
-        <label class="ro"><input type="radio" name="asumber" value="Magang/PKL berlanjut"> Magang/PKL yang dilanjutkan menjadi kerja</label>
-        <label class="ro"><input type="radio" name="asumber" value="Mendirikan usaha sendiri"> Mendirikan usaha sendiri</label>
-        <label class="ro"><input type="radio" name="asumber" value="Seleksi CPNS/PPPK"> Seleksi CPNS / PPPK</label>
-        <label class="ro"><input type="radio" name="asumber" value="Lainnya"> Lainnya</label>
-      </div>
-    </div>
-    <div class="f"><label>Kompetensi MSP yang Paling Bermanfaat (pilih maks. 3)</label>
-      <div class="cg" id="a-komp">
-        <label class="co"><input type="checkbox" value="Pengelolaan Sumberdaya Perairan"> Pengelolaan &amp; Konservasi Sumberdaya Perairan</label>
-        <label class="co"><input type="checkbox" value="Analisis Data Perikanan"> Analisis Data &amp; Statistik Perikanan</label>
-        <label class="co"><input type="checkbox" value="Ekologi Perairan"> Ekologi Perairan &amp; Oseanografi</label>
-        <label class="co"><input type="checkbox" value="GIS & Pemetaan"> GIS / Pemetaan &amp; Penginderaan Jauh Kelautan</label>
-        <label class="co"><input type="checkbox" value="Hukum & Kebijakan Perikanan"> Hukum, Kebijakan &amp; Peraturan Perikanan</label>
-        <label class="co"><input type="checkbox" value="Riset & Penulisan Ilmiah"> Riset, Metodologi &amp; Penulisan Ilmiah</label>
-        <label class="co"><input type="checkbox" value="Komunikasi & Penyuluhan"> Komunikasi &amp; Penyuluhan Perikanan</label>
-        <label class="co"><input type="checkbox" value="Kewirausahaan Perikanan"> Kewirausahaan &amp; Manajemen Usaha Perikanan</label>
-      </div>
-    </div>
-    <div class="f"><label>Kompetensi yang Perlu Ditingkatkan oleh Prodi MSP</label>
-      <textarea id="a-perlu" placeholder="Tuliskan kompetensi atau keterampilan yang sebaiknya diperkuat..."></textarea>
-    </div>
     <div class="fnav">
       <button class="btn-p" onclick="_aGo(2)">← Kembali</button>
       <button class="btn-n" onclick="_aNext(3)">Lanjut →</button>
@@ -805,43 +761,21 @@ table.dt tr:hover td{background:var(--g50);}
     <p class="sec-s">Berikan penilaian terhadap aspek-aspek penyelenggaraan Prodi S1 MSP FPIK UNSRAT.</p>
     <p style="font-size:12.5px;font-weight:600;margin-bottom:14px;color:var(--navy)">Skala: 1 = Kurang &nbsp;|&nbsp; 2 = Cukup &nbsp;|&nbsp; 3 = Baik &nbsp;|&nbsp; 4 = Sangat Baik</p>
     <div id="rtg-alumni"></div>
-    <div class="f"><label>Metode Pembelajaran yang Paling Berpengaruh</label>
-      <div class="cg" id="a-metode">
-        <label class="co"><input type="checkbox" value="Perkuliahan tatap muka"> Perkuliahan tatap muka</label>
-        <label class="co"><input type="checkbox" value="Praktikum laboratorium"> Praktikum laboratorium</label>
-        <label class="co"><input type="checkbox" value="Kerja Lapangan/PKL"> Kerja Lapangan / PKL</label>
-        <label class="co"><input type="checkbox" value="Magang industri"> Magang di instansi/industri</label>
-        <label class="co"><input type="checkbox" value="Penelitian/proyek riset"> Partisipasi dalam penelitian/riset</label>
-        <label class="co"><input type="checkbox" value="Diskusi dan presentasi"> Diskusi kelompok &amp; presentasi</label>
-        <label class="co"><input type="checkbox" value="Studi kasus"> Studi kasus lapangan</label>
-      </div>
-    </div>
     <div class="fnav">
       <button class="btn-p" onclick="_aGo(3)">← Kembali</button>
       <button class="btn-n" onclick="_aNext(4)">Lanjut →</button>
     </div>
   </div>
 
-  <!-- Step 5: Saran -->
+  <!-- Step 5: Konfirmasi & Kirim -->
   <div id="a-s5" class="fc" style="display:none">
-    <h2 class="sec-t">Saran &amp; Rekomendasi</h2>
-    <p class="sec-s">Masukan Anda sangat berarti untuk pengembangan Prodi MSP FPIK UNSRAT.</p>
-    <div class="f"><label>Saran untuk Peningkatan Kurikulum &amp; Pembelajaran</label>
-      <textarea id="a-saran-kur" placeholder="Mata kuliah, topik, atau keterampilan yang sebaiknya ditambahkan..."></textarea>
-    </div>
-    <div class="f"><label>Saran untuk Peningkatan Fasilitas &amp; Sarana</label>
-      <textarea id="a-saran-fas" placeholder="Laboratorium, peralatan, perpustakaan, dll..."></textarea>
-    </div>
-    <div class="f"><label>Apakah Anda merekomendasikan Prodi MSP FPIK UNSRAT? <span class="req">*</span></label>
-      <div class="rg" id="a-rekom-grp">
-        <label class="ro"><input type="radio" name="arekom" value="Sangat merekomendasikan"> Sangat merekomendasikan</label>
-        <label class="ro"><input type="radio" name="arekom" value="Merekomendasikan"> Merekomendasikan</label>
-        <label class="ro"><input type="radio" name="arekom" value="Cukup merekomendasikan"> Cukup merekomendasikan</label>
-        <label class="ro"><input type="radio" name="arekom" value="Tidak merekomendasikan"> Tidak merekomendasikan</label>
-      </div>
-    </div>
-    <div class="f"><label>Pesan untuk Adik-adik Mahasiswa MSP</label>
-      <textarea id="a-pesan" placeholder="Motivasi atau pesan untuk mahasiswa MSP yang saat ini masih belajar..."></textarea>
+    <h2 class="sec-t">Konfirmasi &amp; Kirim</h2>
+    <p class="sec-s">Terima kasih telah mengisi formulir Tracer Study PS MSP FPIK UNSRAT.</p>
+    <div class="info-box lam">
+      <strong>📌 Data Anda akan digunakan untuk:</strong><br>
+      • Tabel 2.8B1 — Waktu Tunggu Lulusan<br>
+      • Tabel 2.8B2 — Tingkat/Ukuran Tempat Kerja Lulusan<br>
+      • LKPS LAM PTIP IAPS 1.0 PS MSP FPIK UNSRAT
     </div>
     <div id="a-submit-err" class="info-box err" style="display:none"></div>
     <div class="fnav">
@@ -863,44 +797,26 @@ table.dt tr:hover td{background:var(--g50);}
     <p class="sec-s">Informasi mengenai lembaga/perusahaan yang mempekerjakan alumni MSP FPIK UNSRAT.</p>
     <div class="info-box lam"><strong>📌 Untuk Akreditasi LAM PTIP (Tabel 2.7B):</strong> Penilaian Anda terhadap 7 aspek kompetensi alumni digunakan langsung sebagai data kepuasan pengguna lulusan.</div>
     <div class="f"><label>Nama Instansi / Perusahaan <span class="req">*</span></label><input id="e-inst" type="text" placeholder="Nama lengkap instansi"></div>
-    <div class="f-row">
-      <div class="f"><label>Bidang / Sektor Instansi <span class="req">*</span></label>
-        <select id="e-sektor">
-          <option value="">-- Pilih --</option>
-          <option>Dinas Kelautan dan Perikanan</option>
-          <option>Kementerian KP / KKP</option>
-          <option>BRIN / Lembaga Riset</option>
-          <option>Balai Riset Perikanan / Kelautan</option>
-          <option>BKSDA / KLHK</option><option>BKIPM</option>
-          <option>Perguruan Tinggi / Pendidikan</option>
-          <option>Perusahaan Perikanan</option>
-          <option>Perusahaan Budidaya / Aquaculture</option>
-          <option>LSM / NGO Lingkungan</option>
-          <option>Pemerintah Daerah</option><option>Lainnya</option>
-        </select>
-      </div>
-      <div class="f"><label>Kota / Kabupaten <span class="req">*</span></label><input id="e-kota" type="text" placeholder="Lokasi instansi"></div>
-    </div>
-    <div class="dvd"></div>
-    <p style="font-size:12px;color:var(--g500);margin-bottom:14px">Data pengisi (bersifat rahasia)</p>
-    <div class="f-row">
-      <div class="f"><label>Nama Pengisi <span class="req">*</span></label><input id="e-pengisi" type="text" placeholder="Nama lengkap Anda"></div>
-      <div class="f"><label>Jabatan Pengisi <span class="req">*</span></label><input id="e-jabpengisi" type="text" placeholder="Jabatan di instansi"></div>
-    </div>
-    <div class="f-row">
-      <div class="f"><label>Email <span class="req">*</span></label><input id="e-email" type="email" placeholder="email@instansi.com"></div>
-      <div class="f"><label>No. Telepon / WA</label><input id="e-telp" type="tel" placeholder="+62 ..."></div>
-    </div>
-    <div class="f"><label>Nama Alumni MSP yang Dinilai</label><input id="e-alum" type="text" placeholder="Nama alumni (opsional)"></div>
-    <div class="f-row">
-      <div class="f"><label>Jabatan Alumni di Instansi Anda</label><input id="e-alum-jab" type="text" placeholder="Jabatan alumni saat ini"></div>
-      <div class="f"><label>Lama Bekerja di Instansi</label>
-        <select id="e-lama"><option value="">-- Pilih --</option><option>Kurang dari 1 tahun</option><option>1 – 2 tahun</option><option>2 – 5 tahun</option><option>Lebih dari 5 tahun</option></select>
-      </div>
+    <div class="f"><label>Bidang / Sektor Instansi <span class="req">*</span></label>
+      <select id="e-sektor">
+        <option value="">-- Pilih --</option>
+        <option>Dinas Kelautan dan Perikanan</option>
+        <option>Kementerian KP / KKP</option>
+        <option>BRIN / Lembaga Riset</option>
+        <option>Balai Riset Perikanan / Kelautan</option>
+        <option>BKSDA / KLHK</option>
+        <option>BKIPM</option>
+        <option>Perguruan Tinggi / Pendidikan</option>
+        <option>Perusahaan Perikanan</option>
+        <option>Perusahaan Budidaya / Aquaculture</option>
+        <option>LSM / NGO Lingkungan</option>
+        <option>Pemerintah Daerah</option>
+        <option>Lainnya</option>
+      </select>
     </div>
     <div class="f">
       <label for="e-alum-tahun-lulus">
-        Tahun Lulus Alumni yang Anda Nilai
+        Tahun Lulus Alumni yang Anda Nilai <span class="req">*</span>
         <span style="font-size:11px;color:var(--g500);font-weight:400;display:block;margin-top:2px">
           Sesuai periode Tabel 2.7B LAM PTIP: TS-4 s.d. TS-2 (alumni lulus 2021–2023)
         </span>
@@ -932,8 +848,8 @@ table.dt tr:hover td{background:var(--g50);}
   </div>
 
   <div id="e-s3" class="fc" style="display:none">
-    <h2 class="sec-t">Kepuasan &amp; Harapan</h2>
-    <p class="sec-s">Harapan dunia kerja terhadap lulusan Prodi MSP FPIK UNSRAT.</p>
+    <h2 class="sec-t">Tingkat Kepuasan Keseluruhan</h2>
+    <p class="sec-s">Penilaian akhir terhadap kompetensi lulusan MSP FPIK UNSRAT secara keseluruhan.</p>
     <div class="f"><label>Tingkat Kepuasan Keseluruhan <span class="req">*</span></label>
       <div class="rg" id="e-puas-grp">
         <label class="ro"><input type="radio" name="epuas" value="Sangat Puas"> Sangat Puas</label>
@@ -942,20 +858,6 @@ table.dt tr:hover td{background:var(--g50);}
         <label class="ro"><input type="radio" name="epuas" value="Kurang Puas"> Kurang Puas</label>
         <label class="ro"><input type="radio" name="epuas" value="Tidak Puas"> Tidak Puas</label>
       </div>
-    </div>
-    <div class="f"><label>Apakah instansi Anda akan merekrut lulusan MSP lagi?</label>
-      <div class="rg" id="e-rekrut-grp">
-        <label class="ro"><input type="radio" name="erekrut" value="Ya, pasti"> Ya, pasti</label>
-        <label class="ro"><input type="radio" name="erekrut" value="Ya, kemungkinan besar"> Ya, kemungkinan besar</label>
-        <label class="ro"><input type="radio" name="erekrut" value="Tidak yakin"> Tidak yakin</label>
-        <label class="ro"><input type="radio" name="erekrut" value="Kemungkinan tidak"> Kemungkinan tidak</label>
-      </div>
-    </div>
-    <div class="f"><label>Kompetensi yang Perlu Ditingkatkan</label>
-      <textarea id="e-saran" placeholder="Kompetensi atau karakter yang sebaiknya ditingkatkan..."></textarea>
-    </div>
-    <div class="f"><label>Harapan / Pesan untuk Prodi MSP</label>
-      <textarea id="e-pesan" placeholder="Harapan atau rekomendasi dari dunia kerja..."></textarea>
     </div>
     <div id="e-submit-err" class="info-box err" style="display:none"></div>
     <div class="fnav">

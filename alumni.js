@@ -5,7 +5,7 @@
 
 import { db }            from './db.js';
 import { TBL_ALUMNI, ASPEK_PRODI, TAHUN_TRACER } from './config.js';
-import { vv, rad, chk, getR, buildRatings, requireFields, validateStep, requireRadio, hideInlineError } from './form.js';
+import { vv, rad, getR, buildRatings, requireFields, validateStep, requireRadio, hideInlineError } from './form.js';
 import { router }        from './app.js';
 
 const TOTAL_STEPS = 5;
@@ -62,7 +62,7 @@ export function aNext(from) {
   switch (from) {
     case 1: {
       hideInlineError('a-s1');
-      if (!requireFields(['a-nama','a-nim','a-masuk','a-lulus','a-email','a-gender'])) return;
+      if (!requireFields(['a-nama','a-nim','a-lulus'])) return;
 
       // ── Validasi tahun lulus: hanya alumni TS-4 s.d. TS-2 yang disurvey
       //    Sesuai LKPS IAPS 1.0 LAM PTIP Tabel 2.8b1 (Program Sarjana)
@@ -96,7 +96,6 @@ export function aNext(from) {
         { type:'radio',  name:'astatus', label:'Status Pekerjaan Saat Ini' },
         { type:'select', id:'a-tunggu',  label:'Waktu Tunggu Mendapat Pekerjaan' },
         { type:'select', id:'a-bidang',  label:'Bidang / Sektor Pekerjaan' },
-        { type:'select', id:'a-gaji',    label:'Kisaran Gaji / Penghasilan' },
       ]);
       if (!ok) return;
       return aGo(3);
@@ -146,31 +145,6 @@ export function aNext(from) {
 
 // ── Submit ke Supabase
 export async function submitAlumni() {
-  if (!rad('arekom')) {
-    const stepEl = document.getElementById('a-s5');
-    if (stepEl) {
-      const radio = document.querySelector('input[name="arekom"]');
-      radio?.closest('.f')?.classList.add('f-err');
-      let errEl = document.getElementById('a-s5-val-err');
-      if (!errEl) {
-        const fnav = stepEl.querySelector('.fnav');
-        if (fnav) {
-          errEl = document.createElement('div');
-          errEl.id = 'a-s5-val-err';
-          errEl.className = 'info-box err';
-          errEl.style.marginTop = '16px';
-          fnav.parentElement.insertBefore(errEl, fnav);
-        }
-      }
-      if (errEl) {
-        errEl.innerHTML = '<strong>⚠️ Data belum lengkap</strong><br>Mohon pilih apakah Anda merekomendasikan Prodi MSP.';
-        errEl.style.display = 'block';
-      }
-      document.querySelector('.f-err')?.scrollIntoView({ behavior:'smooth', block:'center' });
-    }
-    return;
-  }
-
   const btn    = document.getElementById('btn-submit-alumni');
   const errBox = document.getElementById('a-submit-err');
   btn.disabled = true;
@@ -180,34 +154,17 @@ export async function submitAlumni() {
   const payload = {
     nama       : vv('a-nama'),
     nim        : vv('a-nim'),
-    masuk      : vv('a-masuk'),
     lulus      : vv('a-lulus'),
-    email      : vv('a-email'),
-    hp         : vv('a-hp'),
-    gender     : vv('a-gender'),
-    ipk        : vv('a-ipk'),
-    judul      : vv('a-judul'),
     status     : rad('astatus'),
     tunggu     : vv('a-tunggu'),
-    instansi   : vv('a-instansi'),
-    jabatan    : vv('a-jabatan'),
-    kota       : vv('a-kota'),
     bidang     : vv('a-bidang'),
     level_kerja: vv('a-level-kerja'),
-    gaji       : vv('a-gaji'),
+    gaji       : vv('a-gaji') || null,
     kesesuaian : rad('asesuai'),
-    sumber     : rad('asumber'),
-    kompetensi : chk('#a-komp input').join('; '),
-    perlu      : vv('a-perlu'),
     // Rating prodi (7 aspek)
     rtg_ar1 : getR('ar1'), rtg_ar2 : getR('ar2'), rtg_ar3 : getR('ar3'),
     rtg_ar4 : getR('ar4'), rtg_ar5 : getR('ar5'), rtg_ar6 : getR('ar6'),
     rtg_ar7 : getR('ar7'),
-    metode      : chk('#a-metode input').join('; '),
-    saran_kur   : vv('a-saran-kur'),
-    saran_fas   : vv('a-saran-fas'),
-    rekomendasi : rad('arekom'),
-    pesan       : vv('a-pesan'),
   };
 
   const { error } = await db.from(TBL_ALUMNI).insert(payload);
