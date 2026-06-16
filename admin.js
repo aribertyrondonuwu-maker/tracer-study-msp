@@ -103,7 +103,7 @@ async function renderOverview() {
 
   document.getElementById('sgrid').innerHTML = `
     <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${al.length}</div></div>
-    <div class="sc"><div class="sl">Respons Atasan Langsung Alumni</div><div class="sv">${em.length}</div></div>
+    <div class="sc"><div class="sl">Respons Atasan Langsung<br><span style="font-size:9px;opacity:.7;font-weight:400">(total submit, sebelum filter TS-4–TS-2)</span></div><div class="sv">${em.length}</div></div>
     <div class="sc"><div class="sl">Respons Stakeholder</div><div class="sv">${sk.length}</div></div>
     <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
     <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
@@ -736,13 +736,24 @@ async function renderTableAlumni() {
 
 async function renderTableEmployer() {
   const { em } = await getData();
+  const isSA = isSuperAdmin();
   document.getElementById('tb-em').innerHTML = em.length
     ? em.map(e => `<tr>
         <td><strong>${e.instansi}</strong></td><td>${e.sektor}</td>
         <td style="text-align:center">
-          ${e.alumni_tahun_lulus
-            ? `<span class="bdg bgt">${e.alumni_tahun_lulus}</span>`
-            : '<span style="color:var(--g400);font-size:11px">–</span>'}
+          ${isSA
+            ? `<select onchange="window._editAlumniTahunLulus('${e.id}', this.value)"
+                 style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid ${e.alumni_tahun_lulus ? 'var(--teal)' : 'var(--red)'};background:#fff;cursor:pointer">
+                 <option value="">— Belum diisi —</option>
+                 <option value="2021" ${e.alumni_tahun_lulus===2021?'selected':''}>TS-4 (2021)</option>
+                 <option value="2022" ${e.alumni_tahun_lulus===2022?'selected':''}>TS-3 (2022)</option>
+                 <option value="2023" ${e.alumni_tahun_lulus===2023?'selected':''}>TS-2 (2023)</option>
+                 <option value="2024" ${e.alumni_tahun_lulus===2024?'selected':''}>TS-1 (2024) — di luar cakupan</option>
+                 <option value="2025" ${e.alumni_tahun_lulus===2025?'selected':''}>TS (2025) — di luar cakupan</option>
+               </select>`
+            : (e.alumni_tahun_lulus
+                ? `<span class="bdg bgt">${e.alumni_tahun_lulus}</span>`
+                : '<span style="color:var(--g400);font-size:11px">–</span>')}
         </td>
         <td><span class="bdg bgg">${e.kepuasan||'–'}</span></td>
         <td style="font-size:10.5px;white-space:nowrap">${new Date(e.created_at).toLocaleString('id-ID')}</td>
@@ -754,6 +765,25 @@ async function renderTableEmployer() {
         </td></tr>`).join('')
     : '<tr><td colspan="6"><div class="empty">Belum ada data pengguna lulusan.</div></td></tr>';
 }
+
+// ── Edit inline: lengkapi Tahun Lulus Alumni yang Dinilai (khusus superadmin)
+async function editAlumniTahunLulus(id, value) {
+  const yearVal = value ? parseInt(value) : null;
+  const { error } = await db
+    .from(TBL_EMPLOYER)
+    .update({ alumni_tahun_lulus: yearVal })
+    .eq('id', id);
+
+  if (error) {
+    alert(`Gagal menyimpan: ${error.message}`);
+    renderTableEmployer(); // reset tampilan ke nilai semula
+    return;
+  }
+  // Refresh tabel & laporan LAM agar Tabel 2.7B ikut terupdate
+  renderTableEmployer();
+  if (document.getElementById('lam-report')) renderLAM();
+}
+window._editAlumniTahunLulus = editAlumniTahunLulus;
 
 // ════════════════════════════════════════════════════════
 //  TABEL 2.7C — KEPUASAN STAKEHOLDER (Format LAM PTIP Lengkap)
