@@ -769,16 +769,28 @@ async function renderTableEmployer() {
 // ── Edit inline: lengkapi Tahun Lulus Alumni yang Dinilai (khusus superadmin)
 async function editAlumniTahunLulus(id, value) {
   const yearVal = value ? parseInt(value) : null;
-  const { error } = await db
+  console.log('Updating employer id:', id, 'to alumni_tahun_lulus:', yearVal);
+
+  const { data, error } = await db
     .from(TBL_EMPLOYER)
     .update({ alumni_tahun_lulus: yearVal })
-    .eq('id', id);
+    .eq('id', id)
+    .select();
+
+  console.log('Update result:', { data, error });
 
   if (error) {
-    alert(`Gagal menyimpan: ${error.message}`);
+    alert(`Gagal menyimpan: ${error.message}\nKode: ${error.code || '-'}\nDetail: ${error.details || '-'}`);
     renderTableEmployer(); // reset tampilan ke nilai semula
     return;
   }
+
+  if (!data || data.length === 0) {
+    alert('⚠️ Update tidak mengubah baris apapun.\nKemungkinan RLS (Row Level Security) Supabase memblokir operasi UPDATE.\nPeriksa policy UPDATE pada tabel ts_employer di Supabase.');
+    renderTableEmployer();
+    return;
+  }
+
   // Hapus cache agar getData() mengambil data terbaru dari Supabase
   _cache = { al: null, em: null, sk: null, ts: null };
   // Refresh tabel & laporan LAM agar Tabel 2.7B ikut terupdate
