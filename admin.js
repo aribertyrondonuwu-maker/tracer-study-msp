@@ -754,11 +754,26 @@ function renderRTL(al, em) {
 // ════════════════════════════════════════════════════════
 async function renderTableAlumni() {
   const { al } = await getData();
+  const isSA = isSuperAdmin();
+  const LEVEL_OPTIONS = [
+    'Lokal / Wilayah (termasuk wirausaha tidak berizin)',
+    'Nasional / Berbadan Hukum',
+    'Multinasional / Internasional',
+  ];
   document.getElementById('tb-al').innerHTML = al.length
     ? al.map(a => `<tr>
         <td><strong>${a.nama}</strong></td><td>${a.lulus||'–'}</td>
         <td>${(a.bidang||'–').split('(')[0].trim()}</td>
-        <td>${a.level_kerja||'–'}</td><td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
+        <td>
+          ${isSA
+            ? `<select onchange="window._editAlumniLevelKerja('${a.id}', this.value)"
+                 style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ${a.level_kerja ? 'var(--teal)' : 'var(--red)'};background:#fff;cursor:pointer;max-width:160px">
+                 <option value="">— Belum diisi —</option>
+                 ${LEVEL_OPTIONS.map(l => `<option value="${l}" ${a.level_kerja===l?'selected':''}>${l}</option>`).join('')}
+               </select>`
+            : (a.level_kerja || '–')}
+        </td>
+        <td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
         <td><span class="bdg bgo">${a.kesesuaian||'–'}</span></td>
         <td>${a.gaji||'–'}</td>
         <td style="font-size:10.5px;white-space:nowrap">${new Date(a.created_at).toLocaleString('id-ID')}</td>
@@ -770,6 +785,31 @@ async function renderTableAlumni() {
         </td></tr>`).join('')
     : '<tr><td colspan="8"><div class="empty">Belum ada data alumni.</div></td></tr>';
 }
+
+// ── Edit inline: perbaiki Tingkat/Skala Tempat Kerja alumni (khusus superadmin)
+async function editAlumniLevelKerja(id, value) {
+  const { data, error } = await db
+    .from(TBL_ALUMNI)
+    .update({ level_kerja: value || null })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    alert(`Gagal menyimpan: ${error.message}`);
+    renderTableAlumni();
+    return;
+  }
+  if (!data || data.length === 0) {
+    alert('⚠️ Update tidak mengubah baris apapun.\nKemungkinan RLS (Row Level Security) Supabase memblokir operasi UPDATE.\nPeriksa policy UPDATE pada tabel ts_alumni di Supabase.');
+    renderTableAlumni();
+    return;
+  }
+  // Hapus cache agar getData() mengambil data terbaru dari Supabase
+  _cache = { al: null, em: null, sk: null, ts: null };
+  await renderTableAlumni();
+  if (document.getElementById('lam-report')) renderLAM();
+}
+window._editAlumniLevelKerja = editAlumniLevelKerja;
 
 async function renderTableEmployer() {
   const { em } = await getData();
