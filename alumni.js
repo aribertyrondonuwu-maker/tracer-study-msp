@@ -62,7 +62,7 @@ export function aNext(from) {
   switch (from) {
     case 1: {
       hideInlineError('a-s1');
-      if (!requireFields(['a-nama','a-nim','a-lulus'])) return;
+      if (!requireFields(['a-nama','a-lulus'])) return;
 
       // ── Validasi tahun lulus: hanya alumni TS-4 s.d. TS-2 yang disurvey
       //    Sesuai LKPS IAPS 1.0 LAM PTIP Tabel 2.8b1 (Program Sarjana)
@@ -153,7 +153,6 @@ export async function submitAlumni() {
 
   const payload = {
     nama       : vv('a-nama'),
-    nim        : vv('a-nim'),
     lulus      : vv('a-lulus'),
     status     : rad('astatus'),
     tunggu     : vv('a-tunggu'),
