@@ -91,10 +91,12 @@ export function clearCache() { _cache = { al: null, em: null, sk: null, ts: null
 // ════════════════════════════════════════════════════════
 async function renderOverview() {
   const { al, em, sk } = await getData();
-  const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
-  const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
+  // Field "status" sudah dihapus dari formulir — semua responden dianggap sudah bekerja.
+  // Metrik yang lebih informatif: % yang punya data waktu tunggu terisi (terlacak).
+  const terlacak   = al.filter(a => a.tunggu && a.tunggu.trim() !== '').length;
+  const pctTerlacak= al.length ? Math.round(terlacak / al.length * 100) : 0;
   const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
-  const pctRelevan = bekerja ? Math.round(relevan / bekerja * 100) : 0;
+  const pctRelevan = al.length ? Math.round(relevan / al.length * 100) : 0;
   const avg7       = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
   const avgProdi   = avgRtg(al, ['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
 
@@ -105,7 +107,7 @@ async function renderOverview() {
     <div class="sc"><div class="sl">Respons Alumni</div><div class="sv">${al.length}</div></div>
     <div class="sc"><div class="sl">Respons Atasan Langsung<br><span style="font-size:9px;opacity:.7;font-weight:400">(total submit, sebelum filter TS-4–TS-2)</span></div><div class="sv">${em.length}</div></div>
     <div class="sc"><div class="sl">Respons Stakeholder</div><div class="sv">${sk.length}</div></div>
-    <div class="sc"><div class="sl">% Lulusan Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
+    <div class="sc"><div class="sl">% Lulusan Terlacak<br><span style="font-size:9px;opacity:.7;font-weight:400">(punya data waktu tunggu)</span></div><div class="sv">${pctTerlacak}<span class="su">%</span></div></div>
     <div class="sc"><div class="sl">% Kerja Relevan</div><div class="sv">${pctRelevan}<span class="su">%</span></div></div>
     <div class="sc"><div class="sl">Rata-rata 7 Aspek LAM</div><div class="sv">${avg7}<span class="su">/4</span></div></div>
     <div class="sc"><div class="sl">Rata-rata Penilaian Prodi</div><div class="sv">${avgProdi}<span class="su">/4</span></div></div>
@@ -396,13 +398,14 @@ async function renderAnalisis() {
   document.getElementById('cover-date').textContent =
     'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
-  const bekerja  = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
-  const pctKerja = al.length ? Math.round(bekerja/al.length*100) : 0;
+  // Field "status" sudah dihapus dari formulir — metrik lebih bermakna: % yang terlacak (punya data WT)
+  const terlacak = al.filter(a => a.tunggu && a.tunggu.trim() !== '').length;
+  const pctKerja = al.length ? Math.round(terlacak/al.length*100) : 0;
   document.getElementById('sec-profil').innerHTML = `
     <div class="sg" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
       <div class="sc"><div class="sl">Total Alumni</div><div class="sv">${al.length}</div></div>
       <div class="sc"><div class="sl">Total Instansi</div><div class="sv">${em.length}</div></div>
-      <div class="sc"><div class="sl">% Bekerja</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
+      <div class="sc"><div class="sl">% Terlacak</div><div class="sv">${pctKerja}<span class="su">%</span></div></div>
     </div>`;
 
   renderLAM27B(em);
@@ -548,11 +551,9 @@ function build28B1Data(al) {
     // ⚠️ Sesuai panduan resmi LKPS LAM PTIP IAPS 1.0:
     // "Data total waktu tunggu lulusan harus sama dengan jumlah lulusan terlacak pada TS yang relevan."
     // Maka "Jumlah Lulusan Terlacak" (kolom 3) HARUS = WT<6 + WT6-18 + WT>18 (kolom 4+5+6).
-    // Hanya alumni yang BEKERJA dan punya data waktu tunggu yang dihitung sebagai "terlacak".
-    // ⚠️ PENTING: status "Belum Bekerja — ..." JUGA mengandung kata "Bekerja",
-    //    jadi filter harus startsWith('Bekerja') agar tidak salah cocok.
-    //    Definisi "bekerja" (terlacak) HARUS sama persis dengan 2.8B2 agar kedua tabel konsisten.
-    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
+    // Field "status" sudah dihapus dari formulir — semua responden yang submit dianggap
+    // sudah bekerja (asumsi formulir). "Terlacak" = semua yang punya data waktu tunggu.
+    const bekerja  = grp.filter(a => a.tunggu && a.tunggu.trim() !== '');
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
@@ -587,10 +588,9 @@ function build28B2Data(al) {
     const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
       ? jumlahResmi
       : grp.length;
-    // ⚠️ Sama seperti 2.8B1: "Belum Bekerja — ..." mengandung kata "Bekerja",
-    //    jadi filter harus startsWith('Bekerja'). Definisi "bekerja" (terlacak) HARUS
-    //    sama persis dengan 2.8B1 (berbasis status saja) supaya kedua tabel konsisten.
-    const bekerja  = grp.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
+    // ⚠️ Field "status" sudah dihapus dari formulir — semua responden yang submit
+    //    dianggap sudah bekerja. "Terlacak" = semua yang punya data level_kerja terisi.
+    const bekerja  = grp.filter(a => a.level_kerja && a.level_kerja.trim() !== '');
     const terlacak = bekerja;
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: terlacak.length,
@@ -630,15 +630,15 @@ function renderLAM28B1(al) {
     const yr = parseInt(a.lulus);
     return yr >= TAHUN_TRACER.TS_4 && yr <= TAHUN_TRACER.TS_2;
   });
-  const bekerja    = alFiltered.filter(a => a.status && a.status.trim().startsWith('Bekerja'));
+  // Field "status" sudah dihapus dari formulir — semua responden dianggap sudah bekerja.
+  // "Terlacak" = yang punya data waktu tunggu terisi.
+  const bekerja    = alFiltered.filter(a => a.tunggu && a.tunggu.trim() !== '');
   const pctLt6     = bekerja.length ? Math.round(bekerja.filter(isLt6).length / bekerja.length * 100) : 0;
-  const belumKerja = alFiltered.length - bekerja.length;
 
   el.innerHTML = `
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px">
-    <div class="sc"><div class="sl">Total Responden<br><span style="font-size:9px;opacity:.7;font-weight:400">(semua status, TS-4–TS-2)</span></div><div class="sv">${alFiltered.length}</div></div>
-    <div class="sc"><div class="sl">Sudah Bekerja<br><span style="font-size:9px;opacity:.7;font-weight:400">(dasar Tabel 2.8B1 &amp; 2.8B2)</span></div><div class="sv" style="color:var(--teal)">${bekerja.length}</div></div>
-    <div class="sc"><div class="sl">Belum Bekerja /<br>Studi Lanjut</div><div class="sv" style="color:var(--g400)">${belumKerja}</div></div>
+    <div class="sc"><div class="sl">Total Responden<br><span style="font-size:9px;opacity:.7;font-weight:400">(TS-4–TS-2)</span></div><div class="sv">${alFiltered.length}</div></div>
+    <div class="sc"><div class="sl">Terlacak (punya data WT)<br><span style="font-size:9px;opacity:.7;font-weight:400">(dasar Tabel 2.8B1 &amp; 2.8B2)</span></div><div class="sv" style="color:var(--teal)">${bekerja.length}</div></div>
   </div>
   <div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:580px">
     <thead>
@@ -664,7 +664,7 @@ function renderLAM28B1(al) {
   </table>
   <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
     * Hanya mencakup alumni TS-4 s.d. TS-2 (${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}) sesuai LKPS LAM PTIP IAPS 1.0.<br>
-    * "Jumlah Lulusan yang Terlacak" (kolom 3) = alumni yang <strong>sudah bekerja</strong> dan punya data waktu tunggu — sesuai aturan resmi LKPS bahwa total kolom waktu tunggu (4+5+6) harus sama dengan kolom 3. Alumni berstatus "Belum Bekerja" atau "Studi Lanjut" termasuk dalam Total Responden tapi tidak dihitung di kolom ini.<br>
+    * "Jumlah Lulusan yang Terlacak" (kolom 3) = alumni yang punya data waktu tunggu terisi — sesuai aturan resmi LKPS bahwa total kolom waktu tunggu (4+5+6) harus sama dengan kolom 3.<br>
     ⚠️ = Jumlah Lulusan belum diisi di <code>DATA_AKADEMIK.jumlah_lulusan</code> (config.js) — tampil jumlah responden sebagai estimasi.
     Isi dengan data wisuda resmi dari bagian akademik untuk keakuratan Tabel 2.8B.
   </p>
@@ -747,7 +747,6 @@ async function renderTableAlumni() {
   document.getElementById('tb-al').innerHTML = al.length
     ? al.map(a => `<tr>
         <td><strong>${a.nama}</strong></td><td>${a.lulus||'–'}</td>
-        <td><span class="bdg bgt">${a.status||'–'}</span></td>
         <td>${(a.bidang||'–').split('(')[0].trim()}</td>
         <td>${a.level_kerja||'–'}</td><td><span class="bdg bgb">${a.tunggu||'–'}</span></td>
         <td><span class="bdg bgo">${a.kesesuaian||'–'}</span></td>
@@ -759,7 +758,7 @@ async function renderTableAlumni() {
             Hapus
           </button>
         </td></tr>`).join('')
-    : '<tr><td colspan="9"><div class="empty">Belum ada data alumni.</div></td></tr>';
+    : '<tr><td colspan="8"><div class="empty">Belum ada data alumni.</div></td></tr>';
 }
 
 async function renderTableEmployer() {
@@ -1301,15 +1300,16 @@ export async function generateAINarasi() {
   cont.innerHTML = '<p style="color:var(--g500);font-style:italic">Sedang membuat narasi, harap tunggu...</p>';
 
   // Hitung statistik untuk prompt
-  const bekerja    = al.filter(a=>a.status&&!a.status.includes('Belum')&&!a.status.includes('Studi')).length;
-  const pctKerja   = al.length ? Math.round(bekerja/al.length*100) : 0;
+  // Field "status" sudah dihapus dari formulir — gunakan "terlacak" (punya data WT) sebagai metrik
+  const terlacak   = al.filter(a => a.tunggu && a.tunggu.trim() !== '').length;
+  const pctKerja   = al.length ? Math.round(terlacak/al.length*100) : 0;
   const avg7       = avgRtg(em,['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
   const avgProdi   = avgRtg(al,['rtg_ar1','rtg_ar2','rtg_ar3','rtg_ar4','rtg_ar5','rtg_ar6','rtg_ar7']);
   const avgSk      = avgRtg(sk,['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7']);
   const lt6        = al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length;
   const pctLt6     = al.length ? Math.round(lt6/al.length*100) : 0;
   const relevan    = al.filter(a=>['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
-  const pctRelevan = bekerja ? Math.round(relevan/bekerja*100) : 0;
+  const pctRelevan = terlacak ? Math.round(relevan/terlacak*100) : 0;
   const top3bidang = Object.entries(countBy(al,'bidang')).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join(', ');
   const kepuasanEm = JSON.stringify(countBy(em,'kepuasan'));
   const jenisSkMap = JSON.stringify(countBy(sk,'jenis'));
@@ -1337,7 +1337,7 @@ DATA TRACER STUDY:
 - Total responden alumni: ${al.length} orang
 - Total responden pengguna lulusan (atasan langsung): ${em.length} instansi
 - Total responden stakeholder: ${sk.length} orang (${jenisSkMap})
-- Persentase lulusan yang bekerja/berwirausaha: ${pctKerja}%
+- Persentase lulusan yang terlacak (punya data waktu tunggu kerja): ${pctKerja}%
 - Persentase kesesuaian bidang kerja (Erat + Sangat Erat): ${pctRelevan}%
 - Persentase lulusan dengan waktu tunggu < 6 bulan: ${pctLt6}%
 - 3 bidang kerja terbanyak: ${top3bidang}
@@ -1630,10 +1630,11 @@ export async function exportExcel() {
     const tglFile = new Date().toISOString().slice(0, 10);
 
     // ── SHEET 1: RINGKASAN EKSEKUTIF ──────────────────────
-    const bekerja    = al.filter(a => a.status && !a.status.includes('Belum') && !a.status.includes('Studi')).length;
-    const pctKerja   = al.length ? Math.round(bekerja / al.length * 100) : 0;
+    // Field "status" sudah dihapus dari formulir — gunakan "terlacak" (punya data WT) sebagai metrik
+    const terlacak   = al.filter(a => a.tunggu && a.tunggu.trim() !== '').length;
+    const pctKerja   = al.length ? Math.round(terlacak / al.length * 100) : 0;
     const relevan    = al.filter(a => ['Sangat Erat','Erat'].includes(a.kesesuaian)).length;
-    const pctRelevan = bekerja ? Math.round(relevan / bekerja * 100) : 0;
+    const pctRelevan = terlacak ? Math.round(relevan / terlacak * 100) : 0;
     const lt6Al      = al.filter(a => a.tunggu && (a.tunggu.includes('<') || a.tunggu.includes('Kurang dari 6'))).length;
     const pctLt6     = al.length ? Math.round(lt6Al / al.length * 100) : 0;
     const avg7Em     = (() => {
@@ -1667,17 +1668,12 @@ export async function exportExcel() {
       ['Total Responden Stakeholder', sk.length],
       ['', ''],
       ['INDIKATOR LAM PTIP', 'HASIL'],
-      ['% Lulusan Bekerja / Berwirausaha', `${pctKerja}%`],
+      ['% Lulusan Terlacak (punya data waktu tunggu)', `${pctKerja}%`],
       ['% Kesesuaian Bidang Kerja (Erat + Sangat Erat)', `${pctRelevan}%`],
       ['% Lulusan dengan Waktu Tunggu < 6 Bulan (WT1)', `${pctLt6}%`],
       ['Rata-rata 7 Aspek Kepuasan Pengguna Lulusan (Tabel 2.7B)', `${avg7Em} / 4`],
       ['Rata-rata Penilaian Prodi oleh Alumni', `${avgProdi} / 4`],
       ['Rata-rata Kepuasan Stakeholder (Tabel 2.7C)', `${avgSk} / 4`],
-      ['', ''],
-      ['DISTRIBUSI STATUS PEKERJAAN ALUMNI', 'JUMLAH'],
-      ...Object.entries((() => {
-        const m = {}; al.forEach(a => { const v = a.status||'Tidak diisi'; m[v] = (m[v]||0)+1; }); return m;
-      })()).map(([k, v]) => [k, v]),
       ['', ''],
       ['DISTRIBUSI BIDANG PEKERJAAN (Top 10)', 'JUMLAH'],
       ...Object.entries((() => {
@@ -1691,7 +1687,7 @@ export async function exportExcel() {
     // ── SHEET 2: DATA ALUMNI LENGKAP ──────────────────────
     if (al.length) {
       const headersAl = [
-        'No','Nama','Thn Lulus','Status Pekerjaan','Waktu Tunggu',
+        'No','Nama','Thn Lulus','Waktu Tunggu',
         'Bidang/Sektor','Level Tempat Kerja','Gaji/Penghasilan',
         'Kesesuaian Bidang',
         'AR1 - Kurikulum','AR2 - Pengajaran','AR3 - Bimbingan',
@@ -1700,7 +1696,7 @@ export async function exportExcel() {
       ];
       const rowsAl = al.map((a, i) => [
         i+1, a.nama||'', a.lulus||'',
-        a.status||'', a.tunggu||'',
+        a.tunggu||'',
         a.bidang||'', a.level_kerja||'', a.gaji||'', a.kesesuaian||'',
         a.rtg_ar1||'', a.rtg_ar2||'', a.rtg_ar3||'', a.rtg_ar4||'',
         a.rtg_ar5||'', a.rtg_ar6||'', a.rtg_ar7||'',
@@ -1708,7 +1704,7 @@ export async function exportExcel() {
       ]);
       const wsAl = XLSX.utils.aoa_to_sheet([headersAl, ...rowsAl]);
       wsAl['!cols'] = headersAl.map((h, i) => ({
-        wch: [4,22,10,22,16,26,22,18,16,
+        wch: [4,22,10,16,26,22,18,16,
               6,6,6,6,6,6,6,18][i] || 14
       }));
       XLSX.utils.book_append_sheet(wb, wsAl, '👨‍🎓 Data Alumni');
@@ -2128,7 +2124,7 @@ export async function saveAsExcel(type) {
     if (!al.length) return alert('Belum ada data alumni.');
     const ws = XLSX.utils.json_to_sheet(al.map(a => ({
       'Nama': a.nama||'', 'Thn Lulus': a.lulus||'',
-      'Status': a.status||'', 'Waktu Tunggu': a.tunggu||'', 'Bidang': a.bidang||'',
+      'Waktu Tunggu': a.tunggu||'', 'Bidang': a.bidang||'',
       'Level Kerja': a.level_kerja||'', 'Gaji': a.gaji||'', 'Kesesuaian': a.kesesuaian||'',
       'Rtg AR1': a.rtg_ar1||'', 'Rtg AR2': a.rtg_ar2||'', 'Rtg AR3': a.rtg_ar3||'',
       'Rtg AR4': a.rtg_ar4||'', 'Rtg AR5': a.rtg_ar5||'', 'Rtg AR6': a.rtg_ar6||'',
@@ -2212,10 +2208,10 @@ export async function saveAsPDF(type) {
     addHeader('Data Alumni', `${al.length} responden`);
     doc.autoTable({
       startY: 60,
-      head: [['Nama','Lulus','Status','Bidang','W.Tunggu','Kesesuaian','Gaji']],
+      head: [['Nama','Lulus','Bidang','W.Tunggu','Kesesuaian','Gaji']],
       body: al.map(a => [
         a.nama||'–', a.lulus||'–',
-        a.status||'–', (a.bidang||'–').split('(')[0].trim(),
+        (a.bidang||'–').split('(')[0].trim(),
         a.tunggu||'–', a.kesesuaian||'–', a.gaji||'–',
       ]),
       styles: { fontSize: 7.5, cellPadding: 4 },

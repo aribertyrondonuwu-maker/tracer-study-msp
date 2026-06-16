@@ -93,7 +93,6 @@ export function aNext(from) {
     case 2: {
       hideInlineError('a-s2');
       const ok = validateStep([
-        { type:'radio',  name:'astatus', label:'Status Pekerjaan Saat Ini' },
         { type:'select', id:'a-tunggu',  label:'Waktu Tunggu Mendapat Pekerjaan' },
         { type:'select', id:'a-bidang',  label:'Bidang / Sektor Pekerjaan' },
       ]);
@@ -158,7 +157,6 @@ export async function submitAlumni() {
   const payload = {
     nama       : vv('a-nama'),
     lulus      : vv('a-lulus'),
-    status     : rad('astatus'),
     tunggu     : vv('a-tunggu'),
     bidang     : vv('a-bidang'),
     level_kerja: vv('a-level-kerja'),
