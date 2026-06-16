@@ -147,6 +147,10 @@ export function aNext(from) {
 export async function submitAlumni() {
   const btn    = document.getElementById('btn-submit-alumni');
   const errBox = document.getElementById('a-submit-err');
+
+  // Cegah double-submit
+  if (btn.disabled) return;
+
   btn.disabled = true;
   btn.textContent = '⏳ Mengirim...';
   errBox.style.display = 'none';
@@ -166,16 +170,27 @@ export async function submitAlumni() {
     rtg_ar7 : getR('ar7'),
   };
 
-  const { error } = await db.from(TBL_ALUMNI).insert(payload);
+  // Timeout 15 detik
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Koneksi timeout. Periksa internet lalu coba lagi.')), 15000)
+  );
 
-  if (error) {
-    errBox.innerHTML = `<strong>Gagal mengirim data.</strong> ${error.message}
-      <br><small>Cek koneksi internet atau konfigurasi Supabase.</small>`;
+  try {
+    const result = await Promise.race([
+      db.from(TBL_ALUMNI).insert(payload),
+      timeout
+    ]);
+
+    if (result.error) throw new Error(result.error.message);
+    router.go('success');
+
+  } catch (err) {
+    errBox.innerHTML = `<strong>Gagal mengirim data.</strong> ${err.message}
+      <br><small>Periksa koneksi internet lalu coba lagi.</small>`;
     errBox.style.display = 'block';
+    // Selalu reset tombol agar bisa dicoba ulang
     btn.disabled = false;
     btn.textContent = '✅ Kirim Formulir';
-  } else {
-    router.go('success');
   }
 }
 
