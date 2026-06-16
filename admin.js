@@ -532,12 +532,13 @@ function build28B1Data(al) {
     const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
       ? jumlahResmi
       : grp.length;  // fallback: jumlah responden (tandai sebagai estimasi)
-    // Terlacak = semua yang mengisi formulir (ada status)
-    const terlacak = grp.filter(a => a.status && a.status.trim() !== '');
-    // Bekerja = hanya yang punya pekerjaan (untuk kolom WT)
-    const bekerja  = terlacak.filter(a => a.status.includes('Bekerja'));
+    // ⚠️ Sesuai panduan resmi LKPS LAM PTIP IAPS 1.0:
+    // "Data total waktu tunggu lulusan harus sama dengan jumlah lulusan terlacak pada TS yang relevan."
+    // Maka "Jumlah Lulusan Terlacak" (kolom 3) HARUS = WT<6 + WT6-18 + WT>18 (kolom 4+5+6).
+    // Hanya alumni yang BEKERJA dan punya data waktu tunggu yang dihitung sebagai "terlacak".
+    const bekerja  = grp.filter(a => a.status && a.status.includes('Bekerja') && a.tunggu && a.tunggu.trim() !== '');
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
-             terlacak: terlacak.length,
+             terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
   });
 
