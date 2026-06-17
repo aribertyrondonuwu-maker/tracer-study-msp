@@ -419,6 +419,7 @@ async function renderAnalisis() {
   renderLAM27B(em);
   renderLAM27C(sk);
   renderLAM28B1(al);
+  renderRekapBekerjaBelumBekerja(al);
   renderLAM28B2(al);
   renderRTL(al, em);
 }
@@ -686,6 +687,92 @@ function renderLAM28B1(al) {
   <div class="info-box" style="margin-top:10px;padding:8px 14px;background:#e8f5e9;border-left:3px solid #2e7d32;border-radius:6px;font-size:12px">
     <strong>WT1</strong> (% lulusan dengan WT &lt; 6 bulan dari yang bekerja) = <strong>${pctLt6}%</strong>
   </div></div>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  TABEL TAMBAHAN (BARU, TERPISAH) — Rekap Bekerja vs Belum Bekerja
+//  ⚠️ Tabel ini TIDAK mempengaruhi Tabel 2.8B1 / 2.8B2 LAM PTIP di atas.
+//  Tabel 2.8B1/2.8B2 tetap menghitung "terlacak" = punya data waktu
+//  tunggu/level kerja terisi (definisi resmi LKPS), TIDAK DIUBAH.
+//  Tabel ini HANYA untuk informasi tambahan: dari seluruh lulusan
+//  TS-4–TS-2 yang terlacak (mengisi formulir), berapa yang statusnya
+//  "Belum Bekerja" (ditandai tunggu = 'Belum pernah bekerja') vs yang
+//  sudah bekerja (punya kategori waktu tunggu kerja yang valid).
+// ════════════════════════════════════════════════════════
+function renderRekapBekerjaBelumBekerja(al) {
+  const el = document.getElementById('sec-rekap-kerja');
+  if (!el) return;
+
+  const alFiltered = al.filter(a => {
+    const yr = parseInt(a.lulus);
+    return yr >= TAHUN_TRACER.TS_4 && yr <= TAHUN_TRACER.TS_2;
+  });
+  if (!alFiltered.length) { el.innerHTML = '<div class="empty">Belum ada data alumni untuk periode TS-4 s.d. TS-2.</div>'; return; }
+
+  const isBelumBekerja = a => a.tunggu && a.tunggu.trim().toLowerCase() === 'belum pernah bekerja';
+  const isSudahBekerja = a => a.tunggu && a.tunggu.trim() !== '' && !isBelumBekerja(a);
+  const isBelumIsiSamaSekali = a => !a.tunggu || a.tunggu.trim() === '';
+
+  const TAHUN_LIST = [TAHUN_TRACER.TS_4, TAHUN_TRACER.TS_3, TAHUN_TRACER.TS_2];
+  const rows = TAHUN_LIST.map(yr => {
+    const d   = TAHUN_SURVEI.TS - yr;
+    const lbl = `TS-${d} (${yr})`;
+    const grp = alFiltered.filter(a => parseInt(a.lulus) === yr);
+    const terlacak = grp.length; // semua yang submit form untuk tahun ini
+    const sudahBekerja = grp.filter(isSudahBekerja).length;
+    const belumBekerja = grp.filter(isBelumBekerja).length;
+    const belumIsi      = grp.filter(isBelumIsiSamaSekali).length;
+    return { label: lbl, terlacak, sudahBekerja, belumBekerja, belumIsi };
+  });
+
+  const tot = {
+    terlacak     : rows.reduce((s,r) => s + r.terlacak, 0),
+    sudahBekerja : rows.reduce((s,r) => s + r.sudahBekerja, 0),
+    belumBekerja : rows.reduce((s,r) => s + r.belumBekerja, 0),
+    belumIsi     : rows.reduce((s,r) => s + r.belumIsi, 0),
+  };
+
+  const pct = (n, total) => total > 0 ? Math.round(n / total * 100) + '%' : '–';
+
+  const mkRow = (r, isTot=false) => `
+    <tr${isTot ? ' style="font-weight:700;background:var(--g50)"' : ''}>
+      <td style="text-align:center">${r.label}</td>
+      <td style="text-align:center">${r.terlacak}</td>
+      <td style="text-align:center;background:#e8f5e9">${r.sudahBekerja} <span style="color:var(--g500);font-size:10.5px">(${pct(r.sudahBekerja, r.terlacak)})</span></td>
+      <td style="text-align:center;background:#fdecea">${r.belumBekerja} <span style="color:var(--g500);font-size:10.5px">(${pct(r.belumBekerja, r.terlacak)})</span></td>
+      ${r.belumIsi > 0 ? `<td style="text-align:center;color:var(--g400)">${r.belumIsi}</td>` : '<td style="text-align:center;color:var(--g400)">0</td>'}
+    </tr>`;
+
+  el.innerHTML = `
+  <div class="info-box lam" style="margin-bottom:16px">
+    <strong>📊 Rekap Tambahan — Status Bekerja vs Belum Bekerja</strong>
+    <span style="font-size:11px;color:var(--g500);margin-left:6px">Hanya periode TS-4–TS-2 (${TAHUN_TRACER.TS_4}–${TAHUN_TRACER.TS_2}) · Tabel informasi tambahan, TIDAK mengubah Tabel 2.8B1/2.8B2 di atas</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+    <div class="sc"><div class="sl">Total Terlacak<br><span style="font-size:9px;opacity:.7;font-weight:400">(semua submit form)</span></div><div class="sv">${tot.terlacak}</div></div>
+    <div class="sc"><div class="sl">Sudah Bekerja</div><div class="sv" style="color:#2e7d32">${tot.sudahBekerja} <span class="su">(${pct(tot.sudahBekerja, tot.terlacak)})</span></div></div>
+    <div class="sc"><div class="sl">Belum Bekerja</div><div class="sv" style="color:#c0392b">${tot.belumBekerja} <span class="su">(${pct(tot.belumBekerja, tot.terlacak)})</span></div></div>
+  </div>
+  <div class="tw" style="overflow-x:auto"><table class="dt" style="min-width:520px">
+    <thead>
+      <tr>
+        <th style="text-align:center">Tahun Lulus</th>
+        <th style="text-align:center">Total Terlacak</th>
+        <th style="text-align:center;background:#e8f5e9;color:#2e7d32">Sudah Bekerja</th>
+        <th style="text-align:center;background:#fdecea;color:#c0392b">Belum Bekerja</th>
+        <th style="text-align:center">Belum Isi Data</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => mkRow(r)).join('')}
+      ${mkRow({ label:'Jumlah', ...tot }, true)}
+    </tbody>
+  </table>
+  <p style="font-size:11px;color:var(--g500);margin-top:6px;font-style:italic">
+    * "Sudah Bekerja" = alumni dengan data waktu tunggu kerja yang valid (&lt;6 bln, 6–12 bln, 12–18 bln, &gt;18 bln, atau sudah bekerja sebelum lulus).<br>
+    * "Belum Bekerja" = alumni yang secara eksplisit menyatakan belum pernah bekerja.<br>
+    * Tabel ini bersifat informatif saja dan tidak digunakan sebagai dasar Tabel 2.8B1/2.8B2 LKPS LAM PTIP (yang hanya menghitung alumni bekerja).
+  </p>`;
 }
 
 
