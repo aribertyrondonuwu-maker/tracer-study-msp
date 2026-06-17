@@ -1065,32 +1065,40 @@ function render27CTable(sk, em) {
   const headerRow = `
     <thead>
       <tr style="background:var(--navy);color:#fff;font-size:11px;text-align:center">
-        <th rowspan="3" style="vertical-align:middle;width:28px">No</th>
-        <th rowspan="3" style="vertical-align:middle;min-width:110px">Stakeholder</th>
+        <th rowspan="4" style="vertical-align:middle;width:28px">No</th>
+        <th rowspan="4" style="vertical-align:middle;min-width:110px">Stakeholder</th>
         <th colspan="2" style="text-align:center">Instrumen</th>
         <th colspan="3" style="text-align:center">Jumlah Responden</th>
         <th colspan="3" style="text-align:center">Persentase Keterwakilan Responden</th>
-        <th colspan="4" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
-        <th rowspan="3" style="vertical-align:middle;min-width:56px">Skor</th>
-        <th rowspan="3" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
+        <th colspan="12" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
+        <th rowspan="4" style="vertical-align:middle;min-width:56px">Skor</th>
+        <th rowspan="4" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
       </tr>
       <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
-        <th>Ada</th>
-        <th>Tidak Ada</th>
-        <th>TS-2<br>(${TAHUN.TS2})</th>
-        <th>TS-1<br>(${TAHUN.TS1})</th>
-        <th>TS<br>(${TAHUN.TS})</th>
-        <th>TS-2<br>(${TAHUN.TS2})</th>
-        <th>TS-1<br>(${TAHUN.TS1})</th>
-        <th>TS<br>(${TAHUN.TS})</th>
+        <th rowspan="2">Ada</th>
+        <th rowspan="2">Tidak Ada</th>
+        <th rowspan="2">TS-2<br>(${TAHUN.TS2})</th>
+        <th rowspan="2">TS-1<br>(${TAHUN.TS1})</th>
+        <th rowspan="2">TS<br>(${TAHUN.TS})</th>
+        <th rowspan="2">TS-2<br>(${TAHUN.TS2})</th>
+        <th rowspan="2">TS-1<br>(${TAHUN.TS1})</th>
+        <th rowspan="2">TS<br>(${TAHUN.TS})</th>
+        <th colspan="4" style="text-align:center">TS-2 (${TAHUN.TS2})</th>
+        <th colspan="4" style="text-align:center">TS-1 (${TAHUN.TS1})</th>
+        <th colspan="4" style="text-align:center">TS (${TAHUN.TS})</th>
+      </tr>
+      <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
+        <th>SB</th><th>B</th><th>C</th><th>KB</th>
+        <th>SB</th><th>B</th><th>C</th><th>KB</th>
         <th>SB</th><th>B</th><th>C</th><th>KB</th>
       </tr>
       <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
         <th>1</th><th>2</th>
-        <th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
-        <th>8</th><th>9</th><th>10</th>
-        <th>11</th><th>12</th><th>13</th><th>14</th>
-        <th>15</th><th>16</th>
+        <th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th>
+        <th>9</th><th>10</th><th>11</th><th>12</th>
+        <th>13</th><th>14</th><th>15</th><th>16</th>
+        <th>17</th><th>18</th><th>19</th><th>20</th>
+        <th>21</th><th>22</th>
       </tr>
     </thead>`;
 
@@ -1119,7 +1127,11 @@ function render27CTable(sk, em) {
       ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
       : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
 
-    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS);
+    // ⚠️ "Jumlah Responden yang menjawab layanan" (SB/B/C/KB) HARUS dihitung dari
+    //    GABUNGAN SEMUA TAHUN (TS-2 + TS-1 + TS), supaya totalnya sama dengan
+    //    total "Jumlah Responden" (kolom 3+4+5). Sebelumnya hanya menghitung
+    //    tahun TS saja, sehingga totalnya tidak sinkron dengan kolom Jumlah Responden.
+    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j); // semua tahun, tidak difilter tahun_survei
     const cnt   = { SB:0, B:0, C:0, K:0 };
     grpTS.forEach(x => {
       const vals = keys.map(k => x[k]).filter(Boolean);
@@ -1129,7 +1141,7 @@ function render27CTable(sk, em) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    const allGrp = isPL ? _em : sk.filter(x => x.jenis === j);
+    const allGrp = grpTS; // sama dengan grpTS (semua tahun) — dipakai juga untuk hitung skor
     let skor = '–';
     if (allGrp.length) {
       const tot = allGrp.reduce((s, x) => {
