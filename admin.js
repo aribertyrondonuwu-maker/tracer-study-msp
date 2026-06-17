@@ -562,9 +562,14 @@ function build28B1Data(al) {
     // ⚠️ Sesuai panduan resmi LKPS LAM PTIP IAPS 1.0:
     // "Data total waktu tunggu lulusan harus sama dengan jumlah lulusan terlacak pada TS yang relevan."
     // Maka "Jumlah Lulusan Terlacak" (kolom 3) HARUS = WT<6 + WT6-18 + WT>18 (kolom 4+5+6).
-    // Field "status" sudah dihapus dari formulir — semua responden yang submit dianggap
-    // sudah bekerja (asumsi formulir). "Terlacak" = semua yang punya data waktu tunggu.
-    const bekerja  = grp.filter(a => a.tunggu && a.tunggu.trim() !== '');
+    // "Terlacak" = alumni yang sudah BEKERJA dan punya kategori waktu tunggu yang valid.
+    // ⚠️ PENTING: nilai "Belum pernah bekerja" (data lama, sudah dihapus dari formulir
+    // tapi masih ada di beberapa baris historis) HARUS DIKECUALIKAN dari "terlacak" di
+    // tabel ini, karena tidak punya kategori waktu tunggu kerja yang bisa dimasukkan
+    // ke kolom 4/5/6. Alumni dengan status ini ditampilkan di tabel rekap tambahan
+    // terpisah (lihat renderRekapBekerjaBelumBekerja), TIDAK di tabel resmi LKPS ini.
+    const isBelumBekerja = a => a.tunggu && a.tunggu.trim().toLowerCase() === 'belum pernah bekerja';
+    const bekerja  = grp.filter(a => a.tunggu && a.tunggu.trim() !== '' && !isBelumBekerja(a));
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
@@ -604,9 +609,11 @@ function build28B2Data(al) {
     const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
       ? jumlahResmi
       : grp.length;
-    // ⚠️ Field "status" sudah dihapus dari formulir — semua responden yang submit
-    //    dianggap sudah bekerja. "Terlacak" = semua yang punya data level_kerja terisi.
-    const bekerja  = grp.filter(a => a.level_kerja && a.level_kerja.trim() !== '');
+    // ⚠️ "Terlacak" harus konsisten dengan Tabel 2.8B1: mengecualikan alumni
+    //    dengan tunggu = "Belum pernah bekerja" (data lama, tidak punya kategori
+    //    waktu tunggu kerja yang valid), meskipun level_kerja-nya kebetulan terisi.
+    const isBelumBekerja = a => a.tunggu && a.tunggu.trim().toLowerCase() === 'belum pernah bekerja';
+    const bekerja  = grp.filter(a => a.level_kerja && a.level_kerja.trim() !== '' && !isBelumBekerja(a));
     const terlacak = bekerja;
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: terlacak.length,
