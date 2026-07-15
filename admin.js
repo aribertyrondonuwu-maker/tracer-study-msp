@@ -562,14 +562,9 @@ function build28B1Data(al) {
     // ⚠️ Sesuai panduan resmi LKPS LAM PTIP IAPS 1.0:
     // "Data total waktu tunggu lulusan harus sama dengan jumlah lulusan terlacak pada TS yang relevan."
     // Maka "Jumlah Lulusan Terlacak" (kolom 3) HARUS = WT<6 + WT6-18 + WT>18 (kolom 4+5+6).
-    // "Terlacak" = alumni yang sudah BEKERJA dan punya kategori waktu tunggu yang valid.
-    // ⚠️ PENTING: nilai "Belum pernah bekerja" (data lama, sudah dihapus dari formulir
-    // tapi masih ada di beberapa baris historis) HARUS DIKECUALIKAN dari "terlacak" di
-    // tabel ini, karena tidak punya kategori waktu tunggu kerja yang bisa dimasukkan
-    // ke kolom 4/5/6. Alumni dengan status ini ditampilkan di tabel rekap tambahan
-    // terpisah (lihat renderRekapBekerjaBelumBekerja), TIDAK di tabel resmi LKPS ini.
-    const isBelumBekerja = a => a.tunggu && a.tunggu.trim().toLowerCase() === 'belum pernah bekerja';
-    const bekerja  = grp.filter(a => a.tunggu && a.tunggu.trim() !== '' && !isBelumBekerja(a));
+    // Field "status" sudah dihapus dari formulir — semua responden yang submit dianggap
+    // sudah bekerja (asumsi formulir). "Terlacak" = semua yang punya data waktu tunggu.
+    const bekerja  = grp.filter(a => a.tunggu && a.tunggu.trim() !== '');
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: bekerja.length,
              lt6: bekerja.filter(isLt6).length, mid: bekerja.filter(is6_18).length, gt18: bekerja.filter(isGt18).length };
@@ -609,11 +604,9 @@ function build28B2Data(al) {
     const jumlahTampil = jumlahResmi !== null && jumlahResmi > 0
       ? jumlahResmi
       : grp.length;
-    // ⚠️ "Terlacak" harus konsisten dengan Tabel 2.8B1: mengecualikan alumni
-    //    dengan tunggu = "Belum pernah bekerja" (data lama, tidak punya kategori
-    //    waktu tunggu kerja yang valid), meskipun level_kerja-nya kebetulan terisi.
-    const isBelumBekerja = a => a.tunggu && a.tunggu.trim().toLowerCase() === 'belum pernah bekerja';
-    const bekerja  = grp.filter(a => a.level_kerja && a.level_kerja.trim() !== '' && !isBelumBekerja(a));
+    // ⚠️ Field "status" sudah dihapus dari formulir — semua responden yang submit
+    //    dianggap sudah bekerja. "Terlacak" = semua yang punya data level_kerja terisi.
+    const bekerja  = grp.filter(a => a.level_kerja && a.level_kerja.trim() !== '');
     const terlacak = bekerja;
     return { label: lbl, jumlah: jumlahTampil, jumlahIsResmi: jumlahResmi > 0,
              terlacak: terlacak.length,
@@ -1065,40 +1058,32 @@ function render27CTable(sk, em) {
   const headerRow = `
     <thead>
       <tr style="background:var(--navy);color:#fff;font-size:11px;text-align:center">
-        <th rowspan="4" style="vertical-align:middle;width:28px">No</th>
-        <th rowspan="4" style="vertical-align:middle;min-width:110px">Stakeholder</th>
+        <th rowspan="3" style="vertical-align:middle;width:28px">No</th>
+        <th rowspan="3" style="vertical-align:middle;min-width:110px">Stakeholder</th>
         <th colspan="2" style="text-align:center">Instrumen</th>
         <th colspan="3" style="text-align:center">Jumlah Responden</th>
         <th colspan="3" style="text-align:center">Persentase Keterwakilan Responden</th>
-        <th colspan="12" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
-        <th rowspan="4" style="vertical-align:middle;min-width:56px">Skor</th>
-        <th rowspan="4" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
+        <th colspan="4" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
+        <th rowspan="3" style="vertical-align:middle;min-width:56px">Skor</th>
+        <th rowspan="3" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
       </tr>
       <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
-        <th rowspan="2">Ada</th>
-        <th rowspan="2">Tidak Ada</th>
-        <th rowspan="2">TS-2<br>(${TAHUN.TS2})</th>
-        <th rowspan="2">TS-1<br>(${TAHUN.TS1})</th>
-        <th rowspan="2">TS<br>(${TAHUN.TS})</th>
-        <th rowspan="2">TS-2<br>(${TAHUN.TS2})</th>
-        <th rowspan="2">TS-1<br>(${TAHUN.TS1})</th>
-        <th rowspan="2">TS<br>(${TAHUN.TS})</th>
-        <th colspan="4" style="text-align:center">TS-2 (${TAHUN.TS2})</th>
-        <th colspan="4" style="text-align:center">TS-1 (${TAHUN.TS1})</th>
-        <th colspan="4" style="text-align:center">TS (${TAHUN.TS})</th>
-      </tr>
-      <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
-        <th>SB</th><th>B</th><th>C</th><th>KB</th>
-        <th>SB</th><th>B</th><th>C</th><th>KB</th>
+        <th>Ada</th>
+        <th>Tidak Ada</th>
+        <th>TS-2<br>(${TAHUN.TS2})</th>
+        <th>TS-1<br>(${TAHUN.TS1})</th>
+        <th>TS<br>(${TAHUN.TS})</th>
+        <th>TS-2<br>(${TAHUN.TS2})</th>
+        <th>TS-1<br>(${TAHUN.TS1})</th>
+        <th>TS<br>(${TAHUN.TS})</th>
         <th>SB</th><th>B</th><th>C</th><th>KB</th>
       </tr>
       <tr style="background:var(--g100);font-size:10px;color:var(--g500);text-align:center">
         <th>1</th><th>2</th>
-        <th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th>
-        <th>9</th><th>10</th><th>11</th><th>12</th>
-        <th>13</th><th>14</th><th>15</th><th>16</th>
-        <th>17</th><th>18</th><th>19</th><th>20</th>
-        <th>21</th><th>22</th>
+        <th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
+        <th>8</th><th>9</th><th>10</th>
+        <th>11</th><th>12</th><th>13</th><th>14</th>
+        <th>15</th><th>16</th>
       </tr>
     </thead>`;
 
@@ -1127,11 +1112,7 @@ function render27CTable(sk, em) {
       ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
       : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
 
-    // ⚠️ "Jumlah Responden yang menjawab layanan" (SB/B/C/KB) HARUS dihitung dari
-    //    GABUNGAN SEMUA TAHUN (TS-2 + TS-1 + TS), supaya totalnya sama dengan
-    //    total "Jumlah Responden" (kolom 3+4+5). Sebelumnya hanya menghitung
-    //    tahun TS saja, sehingga totalnya tidak sinkron dengan kolom Jumlah Responden.
-    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j); // semua tahun, tidak difilter tahun_survei
+    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS);
     const cnt   = { SB:0, B:0, C:0, K:0 };
     grpTS.forEach(x => {
       const vals = keys.map(k => x[k]).filter(Boolean);
@@ -1141,7 +1122,7 @@ function render27CTable(sk, em) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    const allGrp = grpTS; // sama dengan grpTS (semua tahun) — dipakai juga untuk hitung skor
+    const allGrp = isPL ? _em : sk.filter(x => x.jenis === j);
     let skor = '–';
     if (allGrp.length) {
       const tot = allGrp.reduce((s, x) => {
