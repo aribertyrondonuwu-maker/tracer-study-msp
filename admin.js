@@ -1168,7 +1168,8 @@ function render27CTable(sk, em) {
       ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
       : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
 
-    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN.TS);
+    // SB/B/C/KB dari SEMUA responden TS-2 s.d. TS, supaya SB+B+C+KB = jumlah responden kol. 5–7
+    const grpTS = isPL ? _em : sk.filter(x => x.jenis === j && [TAHUN.TS2, TAHUN.TS1, TAHUN.TS].includes(parseInt(x.tahun_survei)));
     const cnt   = { SB:0, B:0, C:0, K:0 };
     grpTS.forEach(x => {
       const vals = keys.map(k => x[k]).filter(Boolean);
@@ -1310,6 +1311,7 @@ function render27CTable(sk, em) {
 
   const keterangan = `<p style="font-size:11px;color:var(--g500);margin-top:10px;font-style:italic">
     <strong>Keterangan:</strong> Skala penilaian responden: SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, K (Kurang) = 1.
+    Kolom 11–14 = seluruh responden TS-2 s.d. TS (SB + B + C + K = kolom 5 + 6 + 7).
     Skor = (4×SB + 3×B + 2×C + 1×K) ÷ (SB+B+C+K), sesuai rumus template LKPS LAM PTIP IAPS 1.0.<br>
     Total terdata: <strong>${sk.length} stakeholder + ${_em.length} pengguna lulusan</strong> = ${sk.length + _em.length} responden.
     ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis ke database.</span>':''}
@@ -2120,7 +2122,7 @@ export async function exportExcel() {
         const keys  = isPL
           ? ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']
           : ['rtg_sk1','rtg_sk2','rtg_sk3','rtg_sk4','rtg_sk5','rtg_sk6','rtg_sk7'];
-        const grpTS = isPL ? em : sk.filter(x => x.jenis === j && parseInt(x.tahun_survei) === TAHUN_SURVEI.TS);
+        const grpTS = isPL ? em : sk.filter(x => x.jenis === j && [TAHUN_SURVEI.TS_2, TAHUN_SURVEI.TS_1, TAHUN_SURVEI.TS].includes(parseInt(x.tahun_survei)));
         const cnt   = { SB:0, B:0, C:0, K:0 };
         grpTS.forEach(x => {
           const vals = keys.map(k => x[k]).filter(Boolean);
