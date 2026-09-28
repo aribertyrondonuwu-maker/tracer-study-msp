@@ -55,6 +55,15 @@ export const router = {
 // ══════════════════════════════════════════════════════════
 let _statCharts = {};
 
+// Label nilai di grafik: persentase terhadap total, 2 angka desimal + satuan %
+function pctLabel(v, ctx) {
+  if (!v) return '';
+  const tot = ctx.dataset.data.reduce((s, x) => s + (Number(x) || 0), 0);
+  return tot ? (v / tot * 100).toFixed(2) + '%' : '';
+}
+const DL_PIE = { display: true, color: '#fff', font: { weight: 'bold', size: 11 }, formatter: pctLabel };
+
+
 function destroyStatCharts() {
   Object.values(_statCharts).forEach(c => { try { c.destroy(); } catch(e){} });
   _statCharts = {};
@@ -91,7 +100,10 @@ export async function loadStatistik() {
   const lt6 = a.filter(x => x.tunggu && x.tunggu.includes('<')).length;
   const pctLt6 = a.length ? Math.round(lt6 / a.length * 100) : 0;
   const relevan = a.filter(x => ['Sangat Erat','Erat'].includes(x.kesesuaian)).length;
-  const pctRelevan = bekerja ? Math.round(relevan / bekerja * 100) : 0;
+  // Pembagi: alumni bekerja; bila kolom status kosong (formulir MSP tidak lagi menanyakan status),
+  // pakai jumlah alumni yang menjawab kesesuaian.
+  const baseRel = bekerja || a.filter(x => x.kesesuaian).length;
+  const pctRelevan = baseRel ? Math.round(relevan / baseRel * 100) : 0;
 
   let avg7 = '–';
   if (e.length) {
@@ -111,11 +123,12 @@ export async function loadStatistik() {
   document.getElementById('stat-summary-grid').innerHTML = `
     <div class="stat-box teal"><div class="stat-num">${a.length}</div><div class="stat-label">Responden Alumni</div></div>
     <div class="stat-box gold"><div class="stat-num">${e.length}</div><div class="stat-label">Responden Atasan Langsung Alumni</div></div>
-    <div class="stat-box green"><div class="stat-num">${s.length}</div><div class="stat-label">Responden Stakeholder</div></div>
-    <div class="stat-box teal"><div class="stat-num">${pctKerja}<span class="stat-unit">%</span></div><div class="stat-label">Alumni Bekerja</div></div>
-    <div class="stat-box purple"><div class="stat-num">${pctLt6}<span class="stat-unit">%</span></div><div class="stat-label">WT &lt; 6 Bulan</div></div>
-    <div class="stat-box gold"><div class="stat-num">${avg7}</div><div class="stat-label">Rata-rata 7 Aspek LAM <span class="stat-unit">/ 4</span></div></div>
-    <div class="stat-box green"><div class="stat-num">${avgSk}</div><div class="stat-label">Kepuasan Stakeholder <span class="stat-unit">/ 4</span></div></div>
+    <div class="stat-box purple"><div class="stat-num">${s.length}</div><div class="stat-label">Responden Stakeholder</div></div>
+    <div class="stat-box green"><div class="stat-num">${pctKerja}<span class="stat-unit">%</span></div><div class="stat-label">Alumni Bekerja</div></div>
+    <div class="stat-box teal"><div class="stat-num">${pctLt6}<span class="stat-unit">%</span></div><div class="stat-label">WT &lt; 6 Bulan</div></div>
+    <div class="stat-box purple"><div class="stat-num">${pctRelevan}<span class="stat-unit">%</span></div><div class="stat-label">Kerja Relevan MSP</div></div>
+    <div class="stat-box gold"><div class="stat-num">${avg7}</div><div class="stat-label">Rata-rata 7 Aspek <span class="stat-unit">/ 4</span></div></div>
+    <div class="stat-box gold"><div class="stat-num">${avgSk}</div><div class="stat-label">Kepuasan Stakeholder <span class="stat-unit">/ 4</span></div></div>
   `;
 
   // Helper
@@ -131,7 +144,7 @@ export async function loadStatistik() {
     _statCharts.status = new Chart(document.getElementById('sc-status'), {
       type: 'doughnut',
       data: { labels: Object.keys(sMap), datasets: [{ data: Object.values(sMap), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } }, datalabels: DL_PIE } }
     });
 
     // Chart: Waktu tunggu
@@ -139,7 +152,7 @@ export async function loadStatistik() {
     _statCharts.tunggu = new Chart(document.getElementById('sc-tunggu'), {
       type: 'doughnut',
       data: { labels: Object.keys(tMap), datasets: [{ data: Object.values(tMap), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } }, datalabels: DL_PIE } }
     });
 
     // Chart: Kesesuaian
@@ -147,7 +160,7 @@ export async function loadStatistik() {
     _statCharts.sesuai = new Chart(document.getElementById('sc-sesuai'), {
       type: 'doughnut',
       data: { labels: Object.keys(kMap), datasets: [{ data: Object.values(kMap), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } }, datalabels: DL_PIE } }
     });
 
     // Chart: Bidang kerja top 6
@@ -160,7 +173,13 @@ export async function loadStatistik() {
         datasets: [{ data: bSorted.map(([,v]) => v), backgroundColor: CHART_COLORS[0], borderRadius: 4 }]
       },
       options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-        plugins: { legend: { display: false } },
+        plugins: { legend: { display: false },
+          datalabels: { display: true, anchor: 'end', align: 'end', color: '#5A0F1B',
+            font: { weight: 'bold', size: 11 },
+            // persen terhadap SELURUH responden alumni (bukan hanya 6 bidang teratas)
+            formatter: (v) => v ? (v / a.length * 100).toFixed(2) + '%' : '' }
+        },
+        layout: { padding: { right: 48 } },
         scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } }, y: { ticks: { font: { size: 10 } } } }
       }
     });
@@ -197,7 +216,7 @@ export async function loadStatistik() {
     <div class="stat-bar-row">
       <div class="stat-bar-label">${x.lbl}</div>
       <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round(x.count/totalLvl*100)}%;background:var(--teal)"></div></div>
-      <div class="stat-bar-val">${x.count}</div>
+      <div class="stat-bar-val">${(x.count/totalLvl*100).toFixed(2)}%</div>
     </div>`).join('') : '<p style="color:var(--g500);font-size:12px">Belum ada data alumni.</p>';
 
   // Kepuasan Stakeholder — 7 Aspek (Tabel 2.7C)
@@ -226,7 +245,7 @@ export async function loadStatistik() {
       _statCharts.skJenis = new Chart(skCanvas, {
         type: 'doughnut',
         data: { labels: Object.keys(skJenis), datasets: [{ data: Object.values(skJenis), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } }, datalabels: DL_PIE } }
       });
     }
   } else {

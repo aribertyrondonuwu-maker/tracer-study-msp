@@ -112,7 +112,8 @@ export const DATA_AKADEMIK = {
 };
 
 
+// Palet maroon (tema Zona Integritas) dengan aksen emas
 export const CHART_COLORS = [
-  '#003D5B','#006D77','#C5973A','#1B7A4A',
+  '#5A0F1B','#8B1E2D','#C5973A','#1B7A4A',
   '#7B5EA7','#C0392B','#17809B','#D97706','#2563EB','#834F00',
 ];

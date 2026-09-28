@@ -122,13 +122,13 @@ async function renderOverview() {
     mkChart('ch-sesuai', 'doughnut', countBy(al,'kesesuaian'));
     const ks  = ASPEK_PRODI.map(r => r.id.replace('ar','rtg_ar'));
     const rav = ks.map(k => avgOf(al, k));
-    mkHBar('ch-rtg', ASPEK_PRODI.map(r => r.lbl.substring(0,32)), rav, '#006D77');
+    mkHBar('ch-rtg', ASPEK_PRODI.map(r => r.lbl.substring(0,32)), rav, '#8B1E2D');
   }
   if (em.length) {
     mkChart('ch-puas', 'doughnut', countBy(em,'kepuasan'));
     const eks = ASPEK_LAM.map(r => r.id.replace('er','rtg_er'));
     const e7v = eks.map(k => avgOf(em, k));
-    mkHBar('ch-7asp', ASPEK_LAM.map(r => r.lbl.substring(0,32)), e7v, '#003D5B');
+    mkHBar('ch-7asp', ASPEK_LAM.map(r => r.lbl.substring(0,32)), e7v, '#5A0F1B');
   }
 
   // Stakeholder charts
@@ -242,9 +242,9 @@ async function renderLAM() {
     <table class="dt" style="min-width:480px">
       <thead>
         <tr>
-          <th rowspan="2" style="text-align:center;vertical-align:middle">Tahun Lulus</th>
-          <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
-          <th rowspan="2" style="text-align:center;vertical-align:middle">Jumlah Tanggapan Kepuasan Pengguna yang Terlacak</th>
+          <th style="text-align:center;vertical-align:middle">Tahun Lulus</th>
+          <th style="text-align:center;vertical-align:middle">Jumlah Lulusan</th>
+          <th style="text-align:center;vertical-align:middle">Jumlah Tanggapan Kepuasan Pengguna yang Terlacak</th>
         </tr>
         <tr style="background:var(--g100);font-size:11px;color:var(--g500)">
           <th style="text-align:center">1</th><th style="text-align:center">2</th><th style="text-align:center">3</th>
@@ -833,7 +833,7 @@ function renderRTL(al, em) {
   const avg7   = avgRtg(em, ['rtg_er1','rtg_er2','rtg_er3','rtg_er4','rtg_er5','rtg_er6','rtg_er7']);
   const lt6Pct = al.length ? Math.round(al.filter(a=>a.tunggu&&(a.tunggu.includes('<')||a.tunggu.includes('Kurang dari 6'))).length/al.length*100) : 0;
   document.getElementById('tb-rtl').innerHTML = `
-    <tr><td>1</td><td>Kepuasan Pengguna Lulusan</td><td>Rata-rata 7 aspek: ${avg7}/5</td>
+    <tr><td>1</td><td>Kepuasan Pengguna Lulusan</td><td>Rata-rata 7 aspek: ${avg7}/4</td>
         <td>Peningkatan kompetensi bahasa asing & TIK melalui kurikulum</td><td>1 tahun</td><td>Kaprodi</td></tr>
     <tr><td>2</td><td>Waktu Tunggu Kerja</td><td>WT &lt; 6 bln: ${lt6Pct}% alumni</td>
         <td>Perkuat program magang & career fair dengan instansi mitra</td><td>6 bulan</td><td>Kaprodi</td></tr>
@@ -1425,13 +1425,23 @@ export async function loadAdmins() {
     document.getElementById('tb-admins').innerHTML = `<tr><td colspan="6">Error: ${error.message}</td></tr>`;
     return;
   }
-  document.getElementById('tb-admins').innerHTML = (data||[]).map(u => `<tr>
+  const jsEsc = s => String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const meId  = getUser()?.id;
+
+  document.getElementById('tb-admins').innerHTML = (data||[]).map(u => {
+    const isSelf = meId === u.id;
+    return `<tr>
     <td><strong>${u.username}</strong></td>
     <td>${u.full_name||'–'}</td>
     <td><span class="bdg ${u.role===ROLE.SUPERADMIN?'bgb':'bgt'}">${u.role}</span></td>
     <td><span class="bdg ${u.is_active?'bgg':''}">${u.is_active?'Aktif':'Nonaktif'}</span></td>
     <td style="font-size:10.5px">${new Date(u.created_at).toLocaleDateString('id-ID')}</td>
-    <td>${u.role!==ROLE.SUPERADMIN?`
+    <td style="white-space:nowrap">
+      <button onclick="window._editAdmin(${u.id},'${jsEsc(u.username)}','${jsEsc(u.full_name)}')"
+        style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--teal);color:var(--teal);background:#fff;cursor:pointer;margin-right:4px">
+        Edit
+      </button>
+      ${isSelf ? '<span style="font-size:10.5px;color:var(--g500)">(akun Anda)</span>' : `
       <button onclick="window._toggleAdmin(${u.id},${u.is_active})"
         style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--g200);background:#fff;cursor:pointer">
         ${u.is_active?'Nonaktifkan':'Aktifkan'}
@@ -1439,9 +1449,27 @@ export async function loadAdmins() {
       <button onclick="window._deleteAdmin(${u.id})"
         style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;cursor:pointer;margin-left:4px">
         Hapus
-      </button>`:'–'}
-    </td></tr>`).join('');
+      </button>`}
+    </td></tr>`;
+  }).join('');
 }
+
+// Edit username / nama / password akun admin manapun (termasuk superadmin lain)
+window._editAdmin = async function (id, curUsername, curNama) {
+  if (!isSuperAdmin()) return;
+  const username = prompt('Username:', curUsername || '');
+  if (username === null) return;
+  if (!username.trim()) return alert('Username tidak boleh kosong.');
+  const nama = prompt('Nama Lengkap:', curNama || '');
+  if (nama === null) return;
+  const password = prompt('Password baru (kosongkan supaya password lama tetap dipakai):', '');
+  if (password === null) return;
+  const updates = { username: username.trim(), full_name: nama.trim() };
+  if (password.trim()) updates.password = password.trim();
+  const { error } = await db.from(TBL_ADMINS).update(updates).eq('id', id);
+  if (error) { alert('Gagal menyimpan: ' + error.message); return; }
+  loadAdmins();
+};
 
 export async function addAdmin() {
   if (!isSuperAdmin()) return;
@@ -1721,13 +1749,13 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     .map(p => {
       const h = p.match(/^(#{1,4})\s+(.+)$/);
       if (h) {
-        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(h[2])}</h4>`;
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#5A0F1B);font-weight:700">${inlineMd(h[2])}</h4>`;
       }
       if (/^\*\*[^*]+\*\*\s*:?\s*$/.test(p)) {
-        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p.replace(/\*\*/g,''))}</h4>`;
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#5A0F1B);font-weight:700">${inlineMd(p.replace(/\*\*/g,''))}</h4>`;
       }
       if (/^\d+\.\s+[^.]{3,80}$/.test(p)) {
-        return `<h4 style="margin:18px 0 8px;color:var(--navy,#003D5B);font-weight:700">${inlineMd(p)}</h4>`;
+        return `<h4 style="margin:18px 0 8px;color:var(--navy,#5A0F1B);font-weight:700">${inlineMd(p)}</h4>`;
       }
       return `<p style="margin-bottom:12px;line-height:1.75;text-align:justify">${inlineMd(p.replace(/\n/g,' '))}</p>`;
     })
@@ -2222,7 +2250,7 @@ export async function exportWord() {
     new Paragraph({ text:'A. Ringkasan Data', heading:HeadingLevel.HEADING_2 }),
     new Paragraph({ children:[new TextRun({text:`• Total Responden Alumni       : ${al.length} orang`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Total Responden Atasan Langsung Alumni : ${em.length} instansi/perusahaan`,size:22})] }),
-    new Paragraph({ children:[new TextRun({text:`• Rata-rata 7 Aspek LAM PTIP  : ${avg7} / 5`,size:22})] }),
+    new Paragraph({ children:[new TextRun({text:`• Rata-rata 7 Aspek LAM PTIP  : ${avg7} / 4`,size:22})] }),
     new Paragraph({ children:[new TextRun({text:`• Lulusan WT < 6 bulan        : ${pctLt6}%`,size:22})] }),
     new Paragraph(''),
     new Paragraph({ text:'B. Tabel 2.7B — Kepuasan Pengguna Lulusan', heading:HeadingLevel.HEADING_2 }),
@@ -2404,7 +2432,7 @@ export async function saveAsPDF(type) {
         a.tunggu||'–', a.kesesuaian||'–', a.gaji||'–',
       ]),
       styles: { fontSize: 7.5, cellPadding: 4 },
-      headStyles: { fillColor: [0,109,119], textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [139,30,45], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [240,250,251] },
       margin: { left: 24, right: 24 },
     });
@@ -2422,7 +2450,7 @@ export async function saveAsPDF(type) {
         new Date(e.created_at).toLocaleDateString('id-ID'),
       ]),
       styles: { fontSize: 7.5, cellPadding: 4 },
-      headStyles: { fillColor: [0,61,91], textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [90,15,27], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [240,250,251] },
       margin: { left: 24, right: 24 },
     });
@@ -2454,6 +2482,13 @@ window._saveAsPDF   = saveAsPDF;
 // ════════════════════════════════════════════════════════
 //  CHART HELPERS
 // ════════════════════════════════════════════════════════
+// Label nilai di grafik: persentase terhadap total, 2 angka desimal + satuan %
+function pctLabel(v, ctx) {
+  if (!v) return '';
+  const tot = ctx.dataset.data.reduce((s, x) => s + (Number(x) || 0), 0);
+  return tot ? (v / tot * 100).toFixed(2) + '%' : '';
+}
+
 function dChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
 
 function mkChart(id, type, dataMap) {
@@ -2464,7 +2499,12 @@ function mkChart(id, type, dataMap) {
     type,
     data:{labels:Object.keys(dataMap),datasets:[{data:Object.values(dataMap),backgroundColor:CHART_COLORS,borderWidth:0,borderRadius:type==='bar'?4:0}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:type==='bar'?'top':'right',labels:{font:{size:10},padding:8,boxWidth:10}}},
+      layout:type==='bar'?{padding:{top:22}}:undefined,
+      plugins:{legend:{display:type!=='bar',position:'right',labels:{font:{size:10},padding:8,boxWidth:10}},
+        datalabels: type==='bar'
+          ? { display:true, anchor:'end', align:'end', color:'#5A0F1B', font:{weight:'bold',size:11}, formatter:pctLabel }
+          : { display:true, color:'#fff', font:{weight:'bold',size:11}, formatter:pctLabel }
+      },
       scales:type==='bar'?{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9}}}}:undefined}
   });
 }
@@ -2476,9 +2516,11 @@ function mkHBar(id, labels, data, color) {
   charts[id] = new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[{label:'Rata-rata',data,backgroundColor:color,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-      plugins:{legend:{display:false}},
-      scales:{x:{min:0,max:5,ticks:{stepSize:1}},y:{ticks:{font:{size:9}}}}}
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:40}},
+      plugins:{legend:{display:false},
+        datalabels:{ display:true, anchor:'end', align:'end', color:'#111', font:{weight:'bold',size:11}, formatter:(v)=>v>0?Number(v).toFixed(2):'' }
+      },
+      scales:{x:{min:0,max:4,ticks:{stepSize:1}},y:{ticks:{font:{size:9}}}}}
   });
 }
 
