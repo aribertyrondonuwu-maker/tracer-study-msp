@@ -148,8 +148,13 @@ async function renderLAM() {
   const div        = document.getElementById('lam-report');
   if (!al.length && !em.length) { div.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
 
-  // Muat konfigurasi populasi Tabel 2.7C dari Supabase sebelum render
-  await loadSkConfig();
+  // Muat konfigurasi populasi Tabel 2.7C & Rencana Tindak Lanjut 2.7B dari Supabase sebelum render
+  await Promise.all([loadSkConfig(), loadRtl27B()]);
+  const rtl27b = getRtl27B();
+  const rtlCell = (i) => isSuperAdmin()
+    ? `<textarea onchange="window._saveRtl27B(${i}, this.value)"
+        style="width:100%;min-height:46px;font-size:11px;border:1px dashed var(--g300);border-radius:4px;padding:4px;resize:vertical;font-family:inherit">${rtl27b[i] || ''}</textarea>`
+    : `<span style="font-size:11px">${rtl27b[i] || '—'}</span>`;
 
   const totalEm = em.length || 1;
   const t27b = ASPEK_LAM.map((r, i) => {
@@ -170,7 +175,7 @@ async function renderLAM() {
       <td style="text-align:center;background:#fffde7">${pct(2)}</td>
       <td style="text-align:center;background:#fffde7">${pct(1)}</td>
       <td style="text-align:center;font-weight:700;background:#fffde7">${jumlahPct}</td>
-      <td style="color:var(--g400);font-size:11px;font-style:italic">—</td>
+      <td style="min-width:220px">${rtlCell(i)}</td>
     </tr>`;
   }).join('');
 
@@ -974,6 +979,45 @@ window._editAlumniTahunLulus = editAlumniTahunLulus;
 
 const SK_CONFIG_KEY = 'sk_27c_config';
 
+// ── Rencana Tindak Lanjut Tabel 2.7B (editable superadmin) — disimpan di Supabase ts_config
+const RTL_27B_KEY = 'rtl_27b';
+const DEFAULT_RTL_27B = [
+  'Mempertahankan pembinaan karakter dan etika melalui mata kuliah etika profesi dan kegiatan kemahasiswaan',
+  'Memperkuat kurikulum berbasis kompetensi dan memperbanyak praktik lapangan/magang di instansi pengelolaan sumber daya perairan',
+  'Meningkatkan kemampuan bahasa Inggris melalui pelatihan TOEFL, penggunaan referensi dan presentasi berbahasa Inggris dalam perkuliahan',
+  'Memperkuat pembelajaran berbasis TI, termasuk perangkat lunak analisis data dan SIG untuk pengelolaan sumber daya perairan',
+  'Memperbanyak kegiatan presentasi, seminar mahasiswa, dan pelatihan public speaking',
+  'Mempertahankan kegiatan berbasis tim seperti proyek kelompok, praktik lapangan, dan organisasi kemahasiswaan',
+  'Memperbanyak pelatihan soft skill, workshop pengembangan karier, dan program mentoring bersama alumni',
+];
+let _rtlCache = null;
+function getRtl27B() {
+  const v = _rtlCache;
+  return Array.isArray(v) && v.length === 7 ? v : DEFAULT_RTL_27B.slice();
+}
+async function loadRtl27B() {
+  try {
+    const { data, error } = await db.from(TBL_CONFIG).select('value').eq('key', RTL_27B_KEY).maybeSingle();
+    if (error) throw error;
+    const val = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : null;
+    _rtlCache = Array.isArray(val) && val.length === 7 ? val : DEFAULT_RTL_27B.slice();
+  } catch (e) {
+    console.error('Gagal memuat Rencana Tindak Lanjut 2.7B:', e);
+    try { _rtlCache = JSON.parse(localStorage.getItem(RTL_27B_KEY) || 'null') || DEFAULT_RTL_27B.slice(); }
+    catch { _rtlCache = DEFAULT_RTL_27B.slice(); }
+  }
+  return _rtlCache;
+}
+window._saveRtl27B = async function (idx, val) {
+  if (!isSuperAdmin()) return;
+  const arr = getRtl27B();
+  arr[idx] = val;
+  _rtlCache = arr;
+  localStorage.setItem(RTL_27B_KEY, JSON.stringify(arr));
+  const { error } = await db.from(TBL_CONFIG).upsert({ key: RTL_27B_KEY, value: arr }, { onConflict: 'key' });
+  if (error) alert(`⚠️ Gagal menyimpan Rencana Tindak Lanjut ke database: ${error.message}\nData hanya tersimpan sementara di browser ini.`);
+};
+
 // ── Konfigurasi Tabel 2.7C (populasi, instrumen, tindak lanjut) disimpan
 //    di Supabase tabel ts_config (key-value), bukan localStorage, agar
 //    persisten dan bisa diakses dari device/browser manapun.
@@ -1122,15 +1166,9 @@ function render27CTable(sk, em) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
-    const allGrp = isPL ? _em : sk.filter(x => x.jenis === j);
-    let skor = '–';
-    if (allGrp.length) {
-      const tot = allGrp.reduce((s, x) => {
-        const vals = keys.map(k => x[k]).filter(Boolean);
-        return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
-      }, 0);
-      skor = (tot / allGrp.length).toFixed(2);
-    }
+    // Skor = rumus resmi template LKPS: (4·SB + 3·B + 2·C + 1·K) / (SB+B+C+K)
+    const nCnt = cnt.SB + cnt.B + cnt.C + cnt.K;
+    const skor = nCnt ? ((4*cnt.SB + 3*cnt.B + 2*cnt.C + cnt.K) / nCnt).toFixed(2) : '–';
     const skorBadge = skor !== '–' ? (parseFloat(skor)>=3.5?'bgg':parseFloat(skor)>=2.5?'bgt':parseFloat(skor)>=1.5?'bgo':'') : '';
 
     const instrAda    = c.instrAda    === '1';
@@ -1258,7 +1296,7 @@ function render27CTable(sk, em) {
 
   const keterangan = `<p style="font-size:11px;color:var(--g500);margin-top:10px;font-style:italic">
     <strong>Keterangan:</strong> Skala penilaian responden: SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, K (Kurang) = 1.
-    Skor akhir dikonversi ke skala 1–4 sesuai panduan LAM PTIP IAPS 1.0.<br>
+    Skor = (4×SB + 3×B + 2×C + 1×K) ÷ (SB+B+C+K), sesuai rumus template LKPS LAM PTIP IAPS 1.0.<br>
     Total terdata: <strong>${sk.length} stakeholder + ${_em.length} pengguna lulusan</strong> = ${sk.length + _em.length} responden.
     ${isSuperAdmin()?'<span style="color:var(--teal)">💡 <strong>Superadmin:</strong> Isi kolom populasi (input kecil di bawah %) dan tindak lanjut. Data tersimpan otomatis ke database.</span>':''}
   </p>`;
@@ -1836,6 +1874,7 @@ export async function exportExcel() {
   try {
     const XLSX = await _loadXLSX();
     const { al, em, sk } = await getData();
+    await loadRtl27B();   // Rencana Tindak Lanjut 2.7B terbaru untuk kolom 8
 
     if (!al.length && !em.length && !sk.length) {
       alert('Belum ada data untuk diekspor.');
@@ -1999,7 +2038,7 @@ export async function exportExcel() {
         const base = vs.length || 1;
         const pct = cat => vs.length ? parseFloat((cnt[cat]/base*100).toFixed(2)) : 0;
         const jumlahPct = vs.length ? parseFloat(((cnt[4]+cnt[3])/base*100).toFixed(2)) : 0;
-        return [i+1, r.lbl, pct(4), pct(3), pct(2), pct(1), jumlahPct, ''];
+        return [i+1, r.lbl, pct(4), pct(3), pct(2), pct(1), jumlahPct, getRtl27B()[i] || ''];
       });
       const jumlahRow = ['', 'Jumlah',
         ...[4,3,2,1].map(cat =>
@@ -2075,15 +2114,9 @@ export async function exportExcel() {
           const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
           if (avg >= 3.5) cnt.SB++; else if (avg >= 2.5) cnt.B++; else if (avg >= 1.5) cnt.C++; else cnt.K++;
         });
-        const allGrp = isPL ? em : sk.filter(x => x.jenis === j);
-        let skor = '';
-        if (allGrp.length) {
-          const tot = allGrp.reduce((s, x) => {
-            const vals = keys.map(k => x[k]).filter(Boolean);
-            return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
-          }, 0);
-          skor = parseFloat((tot / allGrp.length).toFixed(2));
-        }
+        // Skor = rumus resmi template LKPS: (4·SB + 3·B + 2·C + 1·K) / (SB+B+C+K)
+        const nCnt = cnt.SB + cnt.B + cnt.C + cnt.K;
+        const skor = nCnt ? parseFloat(((4*cnt.SB + 3*cnt.B + 2*cnt.C + cnt.K) / nCnt).toFixed(2)) : '';
         return [
           idx+1, j,
           instrAda, instrTidak,
