@@ -1071,6 +1071,17 @@ async function saveSkConfig(cfg) {
 }
 
 const JENIS_LIST = ['Mahasiswa','Dosen','Tenaga Kependidikan','Mitra','Lulusan','Pengguna Lulusan','Lainnya'];
+
+// Isi awal kolom "Tindak Lanjut" Tabel 2.7C (bisa diedit superadmin; dipakai bila belum diisi)
+const DEFAULT_TINDAK_27C = {
+  'Mahasiswa'           : 'Meningkatkan layanan akademik dan kemahasiswaan melalui evaluasi pembelajaran tiap semester, penguatan bimbingan akademik, dan perbaikan sarana praktikum/laboratorium',
+  'Dosen'               : 'Mempertahankan dukungan manajemen prodi melalui pengembangan kompetensi dosen (pelatihan, studi lanjut, hibah penelitian dan PkM) serta pemerataan beban kerja',
+  'Tenaga Kependidikan' : 'Meningkatkan kompetensi tenaga kependidikan melalui pelatihan layanan administrasi dan sistem informasi akademik, serta memperjelas SOP layanan',
+  'Mitra'               : 'Meningkatkan intensitas dan kualitas kerja sama melalui pertemuan berkala dengan mitra, perluasan MoU/PKS, dan tindak lanjut kegiatan bersama (magang, penelitian, PkM)',
+  'Lulusan'             : 'Memperkuat hubungan dengan alumni melalui tracer study rutin, forum alumni, serta pelibatan alumni dalam pengembangan kurikulum dan pembekalan karier mahasiswa',
+  'Pengguna Lulusan'    : 'Menindaklanjuti masukan pengguna lulusan dalam peninjauan kurikulum, terutama penguatan bahasa asing, teknologi informasi, dan soft skill lulusan',
+  'Lainnya'             : 'Menghimpun dan menindaklanjuti masukan pemangku kepentingan lain melalui kanal saran prodi dan rapat evaluasi tahunan',
+};
 const TAHUN = { TS: TAHUN_SURVEI.TS, TS1: TAHUN_SURVEI.TS_1, TS2: TAHUN_SURVEI.TS_2 };
 
 function render27CTable(sk, em) {
@@ -1102,14 +1113,14 @@ function render27CTable(sk, em) {
   const headerRow = `
     <thead>
       <tr style="background:var(--navy);color:#fff;font-size:11px;text-align:center">
-        <th rowspan="3" style="vertical-align:middle;width:28px">No</th>
-        <th rowspan="3" style="vertical-align:middle;min-width:110px">Stakeholder</th>
+        <th rowspan="2" style="vertical-align:middle;width:28px">No</th>
+        <th rowspan="2" style="vertical-align:middle;min-width:110px">Stakeholder</th>
         <th colspan="2" style="text-align:center">Instrumen</th>
         <th colspan="3" style="text-align:center">Jumlah Responden</th>
         <th colspan="3" style="text-align:center">Persentase Keterwakilan Responden</th>
         <th colspan="4" style="text-align:center">Jumlah Responden yang menjawab layanan<br><span style="font-weight:400;font-size:10px">(SB (Sangat Baik) = 4, B (Baik) = 3, C (Cukup) = 2, dan K (Kurang) = 1)</span></th>
-        <th rowspan="3" style="vertical-align:middle;min-width:56px">Skor</th>
-        <th rowspan="3" style="vertical-align:middle;min-width:130px">Tindak Lanjut</th>
+        <th rowspan="2" style="vertical-align:middle;min-width:56px">Skor</th>
+        <th rowspan="2" style="vertical-align:middle;min-width:220px">Tindak Lanjut</th>
       </tr>
       <tr style="background:var(--navy-md);color:#fff;font-size:10px;text-align:center">
         <th>Ada</th>
@@ -1131,6 +1142,7 @@ function render27CTable(sk, em) {
       </tr>
     </thead>`;
 
+  const _acc = { SB:0, B:0, C:0, K:0 };   // total SB/B/C/K untuk baris Jumlah
   const rows = JENIS_LIST.map((j, idx) => {
     const no    = idx < 6 ? idx + 1 : '...';
     const jKey  = j.replace(/\s+/g,'_');
@@ -1166,6 +1178,7 @@ function render27CTable(sk, em) {
       else if (avg >= 1.5) cnt.C++; else cnt.K++;
     });
 
+    _acc.SB += cnt.SB; _acc.B += cnt.B; _acc.C += cnt.C; _acc.K += cnt.K;
     // Skor = rumus resmi template LKPS: (4·SB + 3·B + 2·C + 1·K) / (SB+B+C+K)
     const nCnt = cnt.SB + cnt.B + cnt.C + cnt.K;
     const skor = nCnt ? ((4*cnt.SB + 3*cnt.B + 2*cnt.C + cnt.K) / nCnt).toFixed(2) : '–';
@@ -1173,7 +1186,7 @@ function render27CTable(sk, em) {
 
     const instrAda    = c.instrAda    === '1';
     const instrTidak  = c.instrAda    === '0';
-    const tindakLanjut = c.tindak || '';
+    const tindakLanjut = c.tindak || DEFAULT_TINDAK_27C[j] || '';
 
     return `<tr>
       <td style="text-align:center;font-weight:600">${no}</td>
@@ -1244,7 +1257,7 @@ function render27CTable(sk, em) {
       <td style="text-align:center"><span class="bdg ${skorBadge}">${skor}</span></td>
       <td>
         ${isSuperAdmin()?`<textarea onchange="window._skCfgSave('${jKey}','tindak',this.value)"
-          style="width:100%;font-size:11px;border:1px dashed var(--g300);border-radius:4px;padding:4px;resize:vertical;min-height:48px"
+          style="width:100%;font-size:11px;border:1px dashed var(--g300);border-radius:4px;padding:4px;resize:vertical;min-height:92px;font-family:inherit"
           placeholder="Isi tindak lanjut...">${tindakLanjut}</textarea>` :
           `<span style="font-size:11px;color:var(--g600)">${tindakLanjut||'–'}</span>`}
       </td>
@@ -1279,9 +1292,10 @@ function render27CTable(sk, em) {
     <td style="text-align:center">${totalTS2}</td>
     <td style="text-align:center">${totalTS1}</td>
     <td style="text-align:center">${totalTS}</td>
-    <td colspan="3"></td>
-    <td colspan="4"></td>
-    <td style="text-align:center;font-weight:700">${grandTotal}</td>
+    <td colspan="3" style="text-align:center;font-weight:600;color:var(--g600)">Total responden: ${grandTotal}</td>
+    <td style="text-align:center">${_acc.SB}</td><td style="text-align:center">${_acc.B}</td>
+    <td style="text-align:center">${_acc.C}</td><td style="text-align:center">${_acc.K}</td>
+    <td style="text-align:center;font-weight:700">${(() => { const n=_acc.SB+_acc.B+_acc.C+_acc.K; return n ? ((4*_acc.SB+3*_acc.B+2*_acc.C+_acc.K)/n).toFixed(2) : '–'; })()}</td>
     <td></td>
   </tr>`;
 
@@ -2040,19 +2054,19 @@ export async function exportExcel() {
         const jumlahPct = vs.length ? parseFloat(((cnt[4]+cnt[3])/base*100).toFixed(2)) : 0;
         return [i+1, r.lbl, pct(4), pct(3), pct(2), pct(1), jumlahPct, getRtl27B()[i] || ''];
       });
-      const jumlahRow = ['', 'Jumlah',
+      const jumlahRow = ['', 'Rata-rata',
         ...[4,3,2,1].map(cat =>
-          parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
+          parseFloat((ASPEK_LAM.reduce((s,_,i)=>{
             const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
             const cnt={4:0,3:0,2:0,1:0};vs.forEach(v=>{const c=v>=4?4:v>=3?3:v>=2?2:1;cnt[c]++;});
             return s+(vs.length?cnt[cat]/vs.length*100:0);
-          },0).toFixed(2))
+          },0)/ASPEK_LAM.length).toFixed(2))
         ),
-        parseFloat(ASPEK_LAM.reduce((s,_,i)=>{
+        parseFloat((ASPEK_LAM.reduce((s,_,i)=>{
           const k=`rtg_er${i+1}`;const vs=em.map(e=>e[k]).filter(Boolean);
           const cnt={4:0,3:0};vs.forEach(v=>{if(v>=4)cnt[4]++;else if(v>=3)cnt[3]++;});
           return s+(vs.length?(cnt[4]+cnt[3])/vs.length*100:0);
-        },0).toFixed(2)),
+        },0)/ASPEK_LAM.length).toFixed(2)),
         ''
       ];
       const ws27b = XLSX.utils.aoa_to_sheet([...header27b, ...rows27b, jumlahRow]);
@@ -2124,14 +2138,18 @@ export async function exportExcel() {
           pctFmt(rTS2, popTS2), pctFmt(rTS1, popTS1), pctFmt(rTS, popTS),
           cnt.SB||0, cnt.B||0, cnt.C||0, cnt.K||0,
           skor,
-          c.tindak || '',
+          c.tindak || DEFAULT_TINDAK_27C[j] || '',
         ];
       });
       const jumlahRow27c = (() => {
         const totTS2 = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS_2).length, 0);
         const totTS1 = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS_1).length, 0);
         const totTS  = JENIS_LIST_27C.reduce((s,j) => j==='Pengguna Lulusan'?s+em.length:s+sk.filter(x=>x.jenis===j&&parseInt(x.tahun_survei)===TAHUN_SURVEI.TS).length, 0);
-        return ['Jumlah', '', '', '', totTS2, totTS1, totTS, '', '', '', '', '', '', '', '', ''];
+        const sum = i => rows27c.reduce((t, r) => t + (Number(r[i]) || 0), 0);
+        const [tSB, tB, tC, tK] = [10, 11, 12, 13].map(sum);
+        const nT = tSB + tB + tC + tK;
+        const skorT = nT ? parseFloat(((4*tSB + 3*tB + 2*tC + tK) / nT).toFixed(2)) : '';
+        return ['Jumlah', '', '', '', totTS2, totTS1, totTS, '', '', '', tSB, tB, tC, tK, skorT, ''];
       })();
 
       // Warning baris data tidak terhitung
