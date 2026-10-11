@@ -1154,11 +1154,14 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
 
   // Ambil API key dari user (localStorage via _setAIKey, atau window.GEMINI_API_KEY)
   // TIDAK ADA key hardcoded — supaya tidak ter-leak saat repo public di GitHub.
-  const GEMINI_KEY = (window.GEMINI_API_KEY || '').trim();
-  if (!GEMINI_KEY) {
+  // Ambil langsung dari kolom input (sumber paling akhir), lalu cek formatnya
+  const inpKey = (document.getElementById('ai-key-input')?.value || '').trim();
+  const GEMINI_KEY = /^AIza[0-9A-Za-z_\-]{30,}$/.test(inpKey) ? inpKey : (window.GEMINI_API_KEY || '').trim();
+  if (!/^AIza[0-9A-Za-z_\-]{30,}$/.test(GEMINI_KEY)) {
     cont.innerHTML = `
       <div class="info-box err">
-        <strong>⚠️ API Key Gemini belum diisi</strong><br>
+        <strong>⚠️ API Key Gemini belum diisi atau tidak valid</strong><br>
+        Isian pada kolom 🔑 bukan API key Gemini (key Gemini selalu diawali <code>AIza</code>). Jika kolom terisi password, itu diisi otomatis oleh browser — hapus lalu tempel key Gemini Anda.<br>
         Masukkan <strong>Gemini API Key</strong> (format: AIzaSy...) pada kolom 🔑 di sebelah kiri tombol Generate.<br>
         <small style="color:var(--g500)">
           Buat API key gratis di
