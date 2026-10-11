@@ -1711,7 +1711,8 @@ export async function exportWord() {
   if (!window.docx) {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://unpkg.com/docx@8.5.0/build/index.js';
+      // build/index.js tidak ada di docx@8.5.0 (404) → pakai build UMD yang membuat window.docx
+      s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
       s.onload = resolve; s.onerror = reject;
       document.head.appendChild(s);
     });
@@ -1742,6 +1743,16 @@ export async function exportWord() {
   const c27b    = compute27B(em, al);
   const rows27b = c27b.partB.map(r => mkRow([r.no, r.label, r.pSB+'%', r.pB+'%', r.pC+'%', r.pK+'%', r.pKepuasan+'%']));
   rows27b.push(mkRow(['Jumlah', '', c27b.jumlahRow.pSB+'%', c27b.jumlahRow.pB+'%', c27b.jumlahRow.pC+'%', c27b.jumlahRow.pK+'%', ''], true));
+
+  // Ambil narasi dari kotak "Analisis dan Pembahasan" (abaikan pesan error/keterangan AI)
+  const narEl = document.getElementById('narasi-content');
+  const narBlocks = narEl ? [...narEl.querySelectorAll('h4, p')].filter(el => !el.closest('.info-box') && !/Narasi dibuat otomatis/i.test(el.textContent)) : [];
+  let narTexts = narBlocks.map(el => ({ t: el.textContent.trim(), h: el.tagName === 'H4' })).filter(x => x.t);
+  if (!narTexts.length && narEl && narEl.innerText.trim() && !narEl.querySelector('.info-box'))
+    narTexts = narEl.innerText.split(/\n{2,}/).map(t => ({ t: t.trim(), h: false })).filter(x => x.t);
+  const narasiParas = narTexts.length
+    ? narTexts.map(x => new Paragraph({ children:[new TextRun({ text:x.t, bold:x.h, size:22 })], spacing:{ after:120 } }))
+    : [new Paragraph({ children:[new TextRun({ text:'(Narasi belum dibuat — klik "Generate Narasi AI" atau ketik manual sebelum mengunduh Word.)', italics:true, size:20, color:'888888' })] })];
 
   const doc = new Document({ sections:[{ children:[
     // Kop
@@ -1785,6 +1796,11 @@ export async function exportWord() {
       mkRow(['Nasional/Berbadan Hukum', w82.totNas, pctOf(w82.totNas, w82.totTerlacak)]),
       mkRow(['Multinasional/Internasional', w82.totMulti, pctOf(w82.totMulti, w82.totTerlacak)]),
     ]}),
+    new Paragraph(''),
+
+    // Analisis & Pembahasan — teks dari kotak narasi (hasil Generate AI atau ketikan manual)
+    new Paragraph({ text:'E. Analisis dan Pembahasan', heading:HeadingLevel.HEADING_2 }),
+    ...narasiParas,
   ]}]});
 
   const blob = await Packer.toBlob(doc);
@@ -1826,7 +1842,10 @@ export function printLaporan() { window.print(); }
 // ── Expose semua ke HTML
 window._exportCSV    = exportCSV;
 window._exportExcel  = exportExcel;
-window._exportWord   = exportWord;
+window._exportWord   = async () => {
+  try { await exportWord(); }
+  catch (e) { alert('Gagal membuat file Word: ' + (e?.message || 'pustaka Word tidak bisa dimuat. Periksa koneksi internet lalu coba lagi.')); }
+};
 window._exportPDF    = exportPDF;
 window._printLaporan = printLaporan;
 
