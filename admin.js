@@ -489,6 +489,7 @@ async function renderLAM() {
 async function renderAnalisis() {
   const { al, em, sk } = await getData();
   await loadAllLkpsConfig();
+  pulihkanNarasi();
   document.getElementById('cover-date').textContent =
     'Dicetak: ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
@@ -1079,6 +1080,51 @@ window._deleteAdmin = async (id) => {
 window._addAdmin = addAdmin;
 
 // ════════════════════════════════════════════════════════
+//  NARASI — disimpan di browser supaya tidak hilang saat halaman dimuat ulang,
+//  dan dipakai oleh ekspor Word.
+// ════════════════════════════════════════════════════════
+const NARASI_KEY = 'msp_narasi_html';
+function narasiAdaIsi(el) {
+  if (!el || el.querySelector('.info-box')) return false;          // kotak berisi pesan error
+  return teksNarasi(el).length > 0;
+}
+// Ambil isi narasi sebagai daftar {t, h}: abaikan kotak error & catatan "Narasi dibuat otomatis"
+function teksNarasi(el) {
+  if (!el) return [];
+  const c = el.cloneNode(true);
+  c.querySelectorAll('.info-box, script, style').forEach(x => x.remove());
+  [...c.querySelectorAll('p, div')].forEach(x => { if (/Narasi dibuat otomatis|Sedang membuat narasi/i.test(x.textContent)) x.remove(); });
+  const out = [];
+  const blocks = c.querySelectorAll('h1,h2,h3,h4,h5,p,li,div');
+  if (blocks.length) {
+    blocks.forEach(b => {
+      if (b.querySelector('h1,h2,h3,h4,h5,p,li,div')) return;      // hanya blok terdalam
+      const t = (b.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) out.push({ t, h: /^H[1-5]$/.test(b.tagName) });
+    });
+  }
+  if (!out.length) {
+    (c.textContent || '').split(/\n{2,}/).map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean)
+      .forEach(t => out.push({ t, h: false }));
+  }
+  return out;
+}
+function simpanNarasi() {
+  const el = document.getElementById('narasi-content');
+  if (!narasiAdaIsi(el)) return;
+  try { localStorage.setItem(NARASI_KEY, el.innerHTML); } catch {}
+}
+function pulihkanNarasi() {
+  const el = document.getElementById('narasi-content');
+  if (!el || narasiAdaIsi(el)) return;
+  let saved = '';
+  try { saved = localStorage.getItem(NARASI_KEY) || ''; } catch {}
+  if (saved && !el.querySelector('.info-box')) el.innerHTML = saved;
+}
+// Simpan juga setiap kali narasi diedit manual
+document.addEventListener('input', e => { if (e.target?.id === 'narasi-content') simpanNarasi(); });
+
+// ════════════════════════════════════════════════════════
 //  GENERATE NARASI AI — menggunakan Google Gemini API
 // ════════════════════════════════════════════════════════
 export async function generateAINarasi() {
@@ -1342,6 +1388,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
     <p style="font-size:10.5px;color:var(--g500);margin-top:16px;padding-top:10px;border-top:1px dashed var(--g200)">
       <em>✨ Narasi dibuat otomatis oleh Google ${result.model}. Silakan tinjau, edit, dan sesuaikan dengan konteks institusi sebelum dipublikasikan.</em>
     </p>`;
+  simpanNarasi();
 
   load.style.display = 'none';
   btn.disabled = false;
@@ -1744,12 +1791,21 @@ export async function exportWord() {
   const rows27b = c27b.partB.map(r => mkRow([r.no, r.label, r.pSB+'%', r.pB+'%', r.pC+'%', r.pK+'%', r.pKepuasan+'%']));
   rows27b.push(mkRow(['Jumlah', '', c27b.jumlahRow.pSB+'%', c27b.jumlahRow.pB+'%', c27b.jumlahRow.pC+'%', c27b.jumlahRow.pK+'%', ''], true));
 
-  // Ambil narasi dari kotak "Analisis dan Pembahasan" (abaikan pesan error/keterangan AI)
+  // Ambil narasi dari kotak "Analisis dan Pembahasan" (atau yang tersimpan di browser)
   const narEl = document.getElementById('narasi-content');
-  const narBlocks = narEl ? [...narEl.querySelectorAll('h4, p')].filter(el => !el.closest('.info-box') && !/Narasi dibuat otomatis/i.test(el.textContent)) : [];
-  let narTexts = narBlocks.map(el => ({ t: el.textContent.trim(), h: el.tagName === 'H4' })).filter(x => x.t);
-  if (!narTexts.length && narEl && narEl.innerText.trim() && !narEl.querySelector('.info-box'))
-    narTexts = narEl.innerText.split(/\n{2,}/).map(t => ({ t: t.trim(), h: false })).filter(x => x.t);
+  let narTexts = teksNarasi(narEl);
+  if (!narasiAdaIsi(narEl)) {
+    pulihkanNarasi();
+    narTexts = narasiAdaIsi(narEl) ? teksNarasi(narEl) : [];
+  }
+  if (!narTexts.length) {
+    const gagal = narEl?.querySelector('.info-box')?.innerText?.split('\n')[0] || '';
+    const lanjut = confirm((gagal
+      ? 'Narasi AI belum berhasil dibuat:\n"' + gagal + '"\n\n'
+      : 'Kotak "Analisis dan Pembahasan" masih kosong.\n\n')
+      + 'Klik OK untuk tetap mengunduh Word tanpa narasi, atau Batal untuk membuat narasi dulu.');
+    if (!lanjut) return;
+  }
   const narasiParas = narTexts.length
     ? narTexts.map(x => new Paragraph({ children:[new TextRun({ text:x.t, bold:x.h, size:22 })], spacing:{ after:120 } }))
     : [new Paragraph({ children:[new TextRun({ text:'(Narasi belum dibuat — klik "Generate Narasi AI" atau ketik manual sebelum mengunduh Word.)', italics:true, size:20, color:'888888' })] })];
