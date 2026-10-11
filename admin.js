@@ -1222,11 +1222,32 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
   }
 
   // Daftar model stable, urut prioritas. Fallback otomatis kalau gagal kuota/not-found.
-  const MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-flash'
+  // Daftar model, urut prioritas. Gemini 2.0 sudah dimatikan Google (1 Juni 2026) dan
+  // Gemini 2.5 sejak 18 Sept 2026 hanya untuk akun yang pernah memakainya → utamakan seri 3.x.
+  // Daftar ini dilengkapi otomatis dari model yang benar-benar tersedia untuk API key Anda.
+  const PREFERRED = [
+    'gemini-flash-latest',
+    'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite',
+    'gemini-2.5-flash', 'gemini-2.5-flash-lite',
   ];
+  let MODELS = PREFERRED.slice();
+  try {
+    txt.textContent = '⏳ Mengecek model...';
+    const lr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${GEMINI_KEY}`);
+    if (lr.ok) {
+      const lj = await lr.json();
+      const avail = (lj.models || [])
+        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => (m.name || '').replace(/^models\//, ''))
+        .filter(n => /^gemini-.*flash/i.test(n) && !/image|tts|audio|live|embedding|preview-tts/i.test(n));
+      if (avail.length) {
+        const ver = n => { const m = n.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
+        const rest = avail.filter(n => !PREFERRED.includes(n))
+          .sort((a, b) => ver(b) - ver(a) || (/preview|exp/.test(a) ? 1 : 0) - (/preview|exp/.test(b) ? 1 : 0));
+        MODELS = [...PREFERRED.filter(n => n === 'gemini-flash-latest' || avail.includes(n)), ...rest];
+      }
+    }
+  } catch (e) { console.warn('[AI] Gagal mengambil daftar model, pakai daftar bawaan:', e); }
 
   const callGemini = async (model) => {
     const res = await fetch(
@@ -1238,9 +1259,10 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature     : 0.7,
-            maxOutputTokens : 4096,
-            // Matikan "thinking" supaya token output dipakai untuk teks, bukan reasoning internal
-            thinkingConfig  : { thinkingBudget: 0 }
+            maxOutputTokens : 8192,
+            // Gemini 2.5: matikan "thinking" supaya token dipakai untuk teks.
+            // Gemini 3.x memakai pengaturan berbeda → biarkan default.
+            ...(/gemini-2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {})
           }
         })
       }
@@ -1254,7 +1276,8 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       err.isQuota = /quota|rate|429|resource_exhausted/i.test(msg) || res.status === 429;
       err.isNotFound = res.status === 404 || /not found|not supported/i.test(msg);
       err.isLeaked = /leaked|reported/i.test(msg);
-      err.isAuth = res.status === 401 || res.status === 403;
+      err.isAuth = res.status === 401 || /API[_ ]?key not valid|API_KEY_INVALID|unregistered callers|invalid api key/i.test(msg);
+      err.isNotFound = err.isNotFound || res.status === 403 && /model|not available|no longer|access/i.test(msg);
       err.isOverload = res.status === 503 || res.status === 500 || /overload|unavailable|high demand|try again later/i.test(msg);
       // "Transient" = worth retrying / fallback: overload, quota, not-found
       err.isTransient = err.isOverload || err.isQuota || err.isNotFound;
@@ -1282,6 +1305,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
   let result = null;
   let lastErr = null;
 
+  window.__aiErrLog = [];
   outer: for (const model of MODELS) {
     // Retry hingga 3x per model untuk error overload (503)
     const MAX_RETRIES = 3;
@@ -1293,6 +1317,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
         break outer; // Berhasil — keluar dari semua loop
       } catch (e) {
         lastErr = e;
+        (window.__aiErrLog = window.__aiErrLog || []).push(`${model}: ${e.message}`);
         console.warn(`[AI] ${model} attempt ${attempt}: ${e.message}`);
 
         // Auth/leaked error → stop semua, jangan coba model lain
@@ -1350,7 +1375,7 @@ Tulis narasi dengan struktur berikut (gunakan paragraf, bukan poin):
       <div class="info-box err">
         <strong>${title}</strong><br>
         ${hint}<br>
-        <small style="color:var(--g500);display:block;margin-top:8px">Detail teknis: ${lastErr?.message || '-'}</small>
+        <small style="color:var(--g500);display:block;margin-top:8px">Detail teknis:<br>${(window.__aiErrLog || []).map(x => x.replace(/</g,'&lt;')).join('<br>') || (lastErr?.message || '-')}</small>
       </div>`;
     load.style.display = 'none';
     btn.disabled = false;
@@ -1799,9 +1824,10 @@ export async function exportWord() {
     narTexts = narasiAdaIsi(narEl) ? teksNarasi(narEl) : [];
   }
   if (!narTexts.length) {
-    const gagal = narEl?.querySelector('.info-box')?.innerText?.split('\n')[0] || '';
+    const box   = narEl?.querySelector('.info-box');
+    const gagal = box ? box.innerText.split('\n').map(t => t.trim()).filter(Boolean).slice(0, 4).join('\n') : '';
     const lanjut = confirm((gagal
-      ? 'Narasi AI belum berhasil dibuat:\n"' + gagal + '"\n\n'
+      ? 'Narasi AI belum berhasil dibuat:\n' + gagal + '\n\n'
       : 'Kotak "Analisis dan Pembahasan" masih kosong.\n\n')
       + 'Klik OK untuk tetap mengunduh Word tanpa narasi, atau Batal untuk membuat narasi dulu.');
     if (!lanjut) return;
