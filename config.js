@@ -19,12 +19,15 @@ export const ROLE = {
   ADMIN      : 'admin',
 };
 
-// ── Akses tab per role
-//    superadmin → semua tab
-//    admin      → hanya analisis
+// ── Akses tab per role (sama dengan Tracer Study THP)
+//    superadmin → semua tab, termasuk Kelola Admin
+//    admin      → bisa lihat & download SEMUA data/laporan,
+//                  TAPI tidak bisa mengubah aplikasi:
+//                  tidak bisa tambah/hapus/edit data, dan tidak
+//                  bisa mengelola akun admin (tab "usr" khusus superadmin)
 export const TAB_ACCESS = {
-  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','sk','excel','usr'],
-  [ROLE.ADMIN]      : ['analisis'],
+  [ROLE.SUPERADMIN] : ['ov','lam','analisis','al','em','sk','usr'],
+  [ROLE.ADMIN]      : ['ov','lam','analisis','al','em','sk'],
 };
 
 // ── 7 Aspek LAM PTIP (Tabel 2.7B) — Kepuasan Pengguna Lulusan
@@ -70,6 +73,15 @@ export const TAHUN_TRACER = {
   TS_2 : 2023,   // batas paling akhir yang boleh disurvey
 };
 
+// ── Kohort Tahun Lulus untuk Tabel LKPS 2.7B / 2.8B1 / 2.8B2 (struktur sama dengan THP)
+//    Format resmi LAM PTIP IAPS 1.0: TS-4, TS-3, TS-2 — diturunkan dari TAHUN_TRACER di atas
+export const LKPS_TS = TAHUN_TRACER.TS_2 + 2; // Tahun Survei (TS) berjalan
+export const LKPS_COHORTS = [
+  { key: 'ts4', label: 'TS-4', year: TAHUN_TRACER.TS_4 },
+  { key: 'ts3', label: 'TS-3', year: TAHUN_TRACER.TS_3 },
+  { key: 'ts2', label: 'TS-2', year: TAHUN_TRACER.TS_2 },
+];
+
 // Opsi tahun lulus alumni untuk formulir alumni & employer
 export const TAHUN_LULUS_OPTIONS = [
   { value: 2021, label: 'TS-4 (2021)' },
@@ -112,8 +124,8 @@ export const DATA_AKADEMIK = {
 };
 
 
-// Palet maroon (tema Zona Integritas) dengan aksen emas
+// Palet biru laut, kuning (emas), merah, hijau — sama dengan Tracer Study THP
 export const CHART_COLORS = [
-  '#5A0F1B','#8B1E2D','#C5973A','#1B7A4A',
+  '#003D5B','#006D77','#C5973A','#1B7A4A',
   '#7B5EA7','#C0392B','#17809B','#D97706','#2563EB','#834F00',
 ];

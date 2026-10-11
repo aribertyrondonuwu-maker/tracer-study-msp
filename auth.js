@@ -57,7 +57,7 @@ export function applyRoleUI() {
   if (!_currentUser) return;
 
   const allowedTabs = TAB_ACCESS[_currentUser.role] || [];
-  const allTabs     = ['ov','lam','analisis','al','em','sk','excel','usr'];
+  const allTabs     = ['ov','lam','analisis','al','em','sk','usr'];
 
   // Sembunyikan / tampilkan tab sesuai role
   allTabs.forEach(tabId => {
@@ -70,12 +70,14 @@ export function applyRoleUI() {
     }
   });
 
-  // Sembunyikan tombol export & kelola data untuk admin biasa
+  // Admin biasa & superadmin sama-sama boleh LIHAT dan DOWNLOAD semua data.
+  // Hanya aksi yang MENGUBAH aplikasi (hapus/tambah/edit data, kelola akun
+  // admin) yang dikunci khusus untuk superadmin.
   const exportBtns  = document.querySelectorAll('.export-only-superadmin');
   const deleteBtns  = document.querySelectorAll('.delete-only-superadmin');
   const isSA        = _currentUser.role === ROLE.SUPERADMIN;
 
-  exportBtns.forEach(b => b.style.display = isSA ? '' : 'none');
+  exportBtns.forEach(b => b.style.display = '');           // selalu tampil untuk semua yang login
   deleteBtns.forEach(b => b.style.display = isSA ? '' : 'none');
 
   // Info user di dashboard
@@ -83,7 +85,7 @@ export function applyRoleUI() {
   if (infoEl) {
     infoEl.innerHTML = `<strong>Login sebagai: ${_currentUser.full_name || _currentUser.username}</strong>
       &nbsp;<span class="bdg ${isSA ? 'bgb' : 'bgt'}">${_currentUser.role}</span>
-      ${isSA ? '— Anda dapat mengelola akun admin dan semua data.' : '— Anda hanya dapat mengakses Analisis & Pembahasan.'}`;
+      ${isSA ? '— Anda dapat mengelola akun admin dan semua data.' : '— Anda dapat melihat dan mengunduh semua data & laporan, namun tidak dapat mengubah aplikasi (tambah/edit/hapus data atau kelola akun admin).'}`;
   }
 
   // Langsung buka tab pertama yang diperbolehkan

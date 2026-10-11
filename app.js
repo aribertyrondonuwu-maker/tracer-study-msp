@@ -174,7 +174,7 @@ export async function loadStatistik() {
       },
       options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
         plugins: { legend: { display: false },
-          datalabels: { display: true, anchor: 'end', align: 'end', color: '#5A0F1B',
+          datalabels: { display: true, anchor: 'end', align: 'end', color: '#003D5B',
             font: { weight: 'bold', size: 11 },
             // persen terhadap SELURUH responden alumni (bukan hanya 6 bidang teratas)
             formatter: (v) => v ? (v / a.length * 100).toFixed(2) + '%' : '' }
